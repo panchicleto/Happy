@@ -1,0 +1,49 @@
+name: Build NaturalDex v0.8.0 Mystery Gift History
+on:
+  push:
+    branches: [ main ]
+    paths: ['naturaldex-build/naturaldex_v080_src.b64','.github/workflows/naturaldex-v080.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: hexbyt3/PKHeXth
+          ref: afab45d8223f2c3356eae954c9179050c5d2f8ae
+          path: pkhexth
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Decode source
+        shell: pwsh
+        run: |
+          $b64=(Get-Content "naturaldex-build/naturaldex_v080_src.b64" -Raw).Trim()
+          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String($b64))
+          Expand-Archive "src.zip" "NaturalDexSource" -Force
+      - name: Build PKHeX.Core
+        shell: pwsh
+        run: dotnet build "pkhexth/PKHeX.Core/PKHeX.Core.csproj" -c Release
+      - name: Copy dependency
+        shell: pwsh
+        run: |
+          $core=Get-ChildItem "pkhexth/PKHeX.Core/bin/Release" -Recurse -Filter "PKHeX.Core.dll"|Select-Object -First 1
+          New-Item -ItemType Directory -Force "NaturalDexSource/Deps"|Out-Null
+          Copy-Item $core.FullName "NaturalDexSource/Deps/PKHeX.Core.dll" -Force
+      - name: Build NaturalDex
+        shell: pwsh
+        run: dotnet build "NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj" -c Release -o "NaturalDexOut"
+      - name: Package
+        shell: pwsh
+        run: |
+          Copy-Item "NaturalDexOut/NaturalDex.Plugin.dll" "NaturalDex.Plugin.v0.8.0-MysteryGiftHistory.dll"
+          Copy-Item "NaturalDexSource/CHANGELOG-v0.8.0.txt" "CHANGELOG-v0.8.0.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NaturalDex-v0.8.0-MysteryGiftHistory
+          path: |
+            NaturalDex.Plugin.v0.8.0-MysteryGiftHistory.dll
+            CHANGELOG-v0.8.0.txt
+            NaturalDexOut/*.pdb

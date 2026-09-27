@@ -2,7 +2,7 @@ name: Build NaturalDex v0.8.0 Mystery Gift History
 on:
   push:
     branches: [ main ]
-    paths: ['naturaldex-build/naturaldex_v080_src.b64','.github/workflows/naturaldex-v080.yml']
+    paths: ['naturaldex-build/v080part*.txt','.github/workflows/naturaldex-v080.yml']
   workflow_dispatch:
 jobs:
   build:
@@ -20,7 +20,7 @@ jobs:
       - name: Decode source
         shell: pwsh
         run: |
-          $b64=(Get-Content "naturaldex-build/naturaldex_v080_src.b64" -Raw).Trim()
+          $b64 = ((0..5) | ForEach-Object { (Get-Content "naturaldex-build/v080part$_.txt" -Raw).Trim() }) -join ""
           [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String($b64))
           Expand-Archive "src.zip" "NaturalDexSource" -Force
       - name: Build PKHeX.Core

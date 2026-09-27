@@ -1,0 +1,64 @@
+name: Build NaturalDex v0.6.0 NaturalPlus
+
+on:
+  push:
+    branches:
+      - naturaldex-build-v060
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v4
+
+      - name: Checkout matching PKHeXth
+        uses: actions/checkout@v4
+        with:
+          repository: hexbyt3/PKHeXth
+          ref: afab45d
+          path: pkhexth
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Decode NaturalDex source
+        shell: pwsh
+        run: |
+          $b64 = (Get-Content "naturaldex-build/naturaldex_v060_src.b64" -Raw).Trim()
+          [IO.File]::WriteAllBytes("naturaldex_v060_src.zip", [Convert]::FromBase64String($b64))
+          Expand-Archive -Path "naturaldex_v060_src.zip" -DestinationPath "NaturalDexSource" -Force
+
+      - name: Build matching PKHeX.Core
+        shell: pwsh
+        run: dotnet build "pkhexth/PKHeX.Core/PKHeX.Core.csproj" -c Release
+
+      - name: Locate and copy PKHeX.Core
+        shell: pwsh
+        run: |
+          $core = Get-ChildItem "pkhexth/PKHeX.Core/bin/Release" -Recurse -Filter "PKHeX.Core.dll" | Select-Object -First 1
+          if (-not $core) { throw "PKHeX.Core.dll not found" }
+          New-Item -ItemType Directory -Force "NaturalDexSource/Deps" | Out-Null
+          Copy-Item $core.FullName "NaturalDexSource/Deps/PKHeX.Core.dll" -Force
+          Write-Host "Using $($core.FullName)"
+
+      - name: Build NaturalDex
+        shell: pwsh
+        run: dotnet build "NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj" -c Release -o "NaturalDexOut"
+
+      - name: Rename DLL
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "NaturalDexOut/NaturalDex.Plugin.dll")) { throw "NaturalDex.Plugin.dll not produced" }
+          Copy-Item "NaturalDexOut/NaturalDex.Plugin.dll" "NaturalDex.Plugin.v0.6.0-NaturalPlus.dll"
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: NaturalDex-v0.6.0-NaturalPlus
+          path: |
+            NaturalDex.Plugin.v0.6.0-NaturalPlus.dll
+            NaturalDexOut/*.pdb

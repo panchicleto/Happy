@@ -238,8 +238,16 @@ $g=$g.Replace('			PKM val = null;' + [Environment]::NewLine + '			string text = 
 '			PKM val = null;' + [Environment]::NewLine + '			_pendingEventReceipt = null;' + [Environment]::NewLine + '			string text = "No legal result.";')
 
 # Commit current-save Wonder Record only after that Pokemon actually succeeded.
-$g=$g.Replace('			generationBatch.Pokemon.Add(val);' + [Environment]::NewLine + '			EncounterSourcePreference source =',
-'			generationBatch.Pokemon.Add(val);' + [Environment]::NewLine + '			if (_pendingEventReceipt is not null)' + [Environment]::NewLine + '				generationBatch.EventReceipts.Add(_pendingEventReceipt);' + [Environment]::NewLine + '			EncounterSourcePreference source =')
+if ($g -notmatch 'generationBatch\.EventReceipts\.Add\(_pendingEventReceipt\)') {
+  $addNeedle="			generationBatch.Pokemon.Add(val);"
+  $addAt=$g.IndexOf($addNeedle)
+  if ($addAt -lt 0) { throw "Could not locate successful batch insertion point." }
+  $lineEnd=$g.IndexOf([char]10,$addAt)
+  if ($lineEnd -lt 0) { throw "Could not locate end of successful batch insertion line." }
+  $receiptHook="			if (_pendingEventReceipt is not null)" + [Environment]::NewLine +
+               "				generationBatch.EventReceipts.Add(_pendingEventReceipt);" + [Environment]::NewLine
+  $g=$g.Insert($lineEnd + 1,$receiptHook)
+}
 
 # Insert direct official-shiny resolver before the older ALM event path.
 $marker='		DateOnly date;' + [Environment]::NewLine + '		if (shiny && _options.PreferOfficialShinyEvents && _eventCatalog != null)'
@@ -392,7 +400,8 @@ Set-Content $fp $c -Encoding UTF8
 
 # Hard assertions so a green build cannot silently omit the fixes.
 $verifyGen=Get-Content "NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs" -Raw
-if ($verifyGen -notmatch 'TryGenerateDirectOfficialShiny') { throw "v1.1.0 verification failed: direct shiny event resolver missing." }
+if ($verifyGen -notmatch 'PKM\? official = TryGenerateDirectOfficialShiny') { throw "v1.1.0 verification failed: direct shiny event call missing." }
+if ($verifyGen -notmatch 'private PKM\? TryGenerateDirectOfficialShiny') { throw "v1.1.0 verification failed: direct shiny event resolver missing." }
 if ($verifyGen -notmatch 'generationBatch\.EventReceipts\.Add\(_pendingEventReceipt\)') { throw "v1.1.0 verification failed: event receipt hook missing." }
 $verifyForm=Get-Content "NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs" -Raw
 if ($verifyForm -notmatch 'int requiredSpan = batch\.Pokemon\.Count;') { throw "v1.1.0 verification failed: positional gap planner missing." }

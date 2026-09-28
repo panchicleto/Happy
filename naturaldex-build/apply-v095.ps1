@@ -13,17 +13,17 @@ private void ClearGiftHistory_Click(object? sender, EventArgs e)
         return;
     if (MessageBox.Show("CONFIRMACIÓN FINAL. Se creará un backup antes de modificar el save.", "NaturalDex", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) != DialogResult.Yes)
         return;
-    SaveFile original = _sav.Clone();
+    SaveFile original = SAV.Clone();
     string backup;
-    try { backup = SaveBackupManager.Create(_sav); }
+    try { backup = SaveBackupManager.Create(SAV); }
     catch (Exception ex)
     {
         MessageBox.Show("No se pudo crear el backup. No se modificó el save.\r\n" + ex.Message, "NaturalDex", MessageBoxButtons.OK, MessageBoxIcon.Error);
         return;
     }
-    if (!EventReceiptWriter.TryClearSupportedHistory(_sav, out string result))
+    if (!EventReceiptWriter.TryClearSupportedHistory(SAV, out string result))
     {
-        _sav.CopyChangesFrom(original);
+        SAV.CopyChangesFrom(original);
         MessageBox.Show(result + "\r\nNo se modificó el save.", "NaturalDex", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         return;
     }

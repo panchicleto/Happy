@@ -38,10 +38,10 @@ $fi = $c.IndexOf($fieldNeedle)
 if ($fi -lt 0) { throw "cancel field not found" }
 $c = $c.Insert($fi, 'private readonly Button _clearGiftHistory = new Button { Text = "LIMPIAR HISTORIAL DE WONDER CARDS", AutoSize = true };' + [Environment]::NewLine + "    ")
 
-$ctorNeedle = "InitializeComponent();"
+$ctorNeedle = "Controls.Add"
 $ci = $c.IndexOf($ctorNeedle)
 if ($ci -lt 0) { throw "InitializeComponent not found" }
-$c = $c.Insert($ci + $ctorNeedle.Length, [Environment]::NewLine + "        _clearGiftHistory.Click += ClearGiftHistory_Click;" + [Environment]::NewLine + "        _clearGiftHistory.Dock = DockStyle.Top;" + [Environment]::NewLine + "        Controls.Add(_clearGiftHistory);" + [Environment]::NewLine + "        _clearGiftHistory.BringToFront();")
+$c = $c.Insert($ci, "_clearGiftHistory.Click += ClearGiftHistory_Click;" + [Environment]::NewLine + "        _clearGiftHistory.Dock = DockStyle.Top;" + [Environment]::NewLine + "        Controls.Add(_clearGiftHistory);" + [Environment]::NewLine + "        _clearGiftHistory.BringToFront();" + [Environment]::NewLine + "        ")
 
 Set-Content $fp $c -Encoding UTF8
 

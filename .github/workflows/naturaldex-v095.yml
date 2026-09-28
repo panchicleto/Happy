@@ -1,0 +1,56 @@
+name: Build NaturalDex v0.9.5 Gift Cleanup
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'naturaldex-build/v095-trigger.txt'
+      - 'naturaldex-build/apply-v095.ps1'
+      - '.github/workflows/naturaldex-v095.yml'
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: hexbyt3/PKHeXth
+          ref: afab45d8223f2c3356eae954c9179050c5d2f8ae
+          path: pkhexth
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Reassemble source
+        shell: pwsh
+        run: |
+          $b64 = git show 6a8192535fcca3fd0e447f114070c8564e28adc9:naturaldex-build/v093part00.txt
+          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String(($b64 -join "")))
+          Expand-Archive src.zip NaturalDexSource -Force
+          git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch
+          $p="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
+          $c=Get-Content $p -Raw
+          $c=$c.Replace('_strictValidation.Checked, (int)_startBox.Value, (int)_retries.Value)', '_strictValidation.Checked, true, (int)_startBox.Value, (int)_retries.Value)')
+          Set-Content $p $c -Encoding UTF8
+      - name: Apply v095
+        shell: pwsh
+        run: ./naturaldex-build/apply-v095.ps1
+      - name: Build core
+        shell: pwsh
+        run: dotnet build pkhexth/PKHeX.Core/PKHeX.Core.csproj -c Release
+      - name: Copy core
+        shell: pwsh
+        run: |
+          $core=Get-ChildItem pkhexth/PKHeX.Core/bin/Release -Recurse -Filter PKHeX.Core.dll | Select-Object -First 1
+          New-Item -ItemType Directory -Force NaturalDexSource/Deps | Out-Null
+          Copy-Item $core.FullName NaturalDexSource/Deps/PKHeX.Core.dll -Force
+      - name: Build plugin
+        shell: pwsh
+        run: dotnet build NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj -c Release -o NaturalDexOut
+      - name: Package
+        shell: pwsh
+        run: Copy-Item NaturalDexOut/NaturalDex.Plugin.dll NaturalDex.Plugin.v0.9.5-GiftCleanup.dll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NaturalDex-v0.9.5-GiftCleanup
+          path: NaturalDex.Plugin.v0.9.5-GiftCleanup.dll

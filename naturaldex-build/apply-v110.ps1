@@ -63,7 +63,7 @@ internal static class LivingDexOrderEngine
         var table = sav.Personal;
         var list = new List<ushort>();
         for (ushort species=1; species<=max; species++)
-            if (table[species].IsPresentInGame)
+            if (table.IsPresentInGame(species, 0))
                 list.Add(species);
         return list;
     }

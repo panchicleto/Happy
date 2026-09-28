@@ -92,7 +92,7 @@ internal sealed class PLANPCToolForm : Form
     private void Scan()
     {
         _grid.Rows.Clear();
-        int size = PokeCrypto.SIZE_8ASTORED;
+        int size = new PA8().SIZE_STORED;
         var excluded = new HashSet<uint>
         {
             0x47E1CEAB, // boxes
@@ -182,7 +182,7 @@ internal sealed class PLANPCToolForm : Form
             return;
 
         byte[] data = File.ReadAllBytes(od.FileName);
-        if (data.Length < PokeCrypto.SIZE_8ASTORED)
+        if (data.Length < new PA8().SIZE_STORED)
         {
             MessageBox.Show(this, "El archivo es demasiado pequeño para PA8.", "NDX — PLA NPC", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -210,7 +210,7 @@ internal sealed class PLANPCToolForm : Form
             return;
 
         byte[] encrypted = pk.EncryptedBoxData;
-        encrypted.CopyTo(c.Block.Data.Slice(c.Offset, PokeCrypto.SIZE_8ASTORED));
+        encrypted.CopyTo(c.Block.Data.Slice(c.Offset, new PA8().SIZE_STORED));
         _sav.State.Edited = true;
         Edited = true;
         Scan();
@@ -220,8 +220,8 @@ internal sealed class PLANPCToolForm : Form
     {
         try
         {
-            string[] arr = GameInfo.Strings.Species;
-            return species < arr.Length ? arr[species] : species.ToString();
+            var arr = GameInfo.Strings.Species;
+            return species < arr.Count ? arr[species] : species.ToString();
         }
         catch { return species.ToString(); }
     }

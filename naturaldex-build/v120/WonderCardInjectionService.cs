@@ -21,14 +21,15 @@ internal static class WonderCardInjectionService
 {
     public static WonderInjectionResult Preflight(SaveFile source, IReadOnlyList<WonderCardEntry> selected, bool strictValidation)
     {
+        int pokemon = 0;
+        int rewards = 0;
+        int receipts = 0;
+
         if (selected.Count == 0)
             return Fail("No hay eventos seleccionados.");
 
         SaveFile preview = source.Clone();
         var messages = new List<string>();
-        int pokemon = 0;
-        int rewards = 0;
-        int receipts = 0;
 
         foreach (var entry in selected)
         {

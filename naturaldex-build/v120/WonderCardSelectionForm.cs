@@ -22,7 +22,7 @@ internal sealed class WonderCardSelectionForm : Form
     {
         _all = entries;
 
-        Text = "NaturalDex v1.2.0 — Selector de eventos / Wonder Cards";
+        Text = "NaturalDex v1.2.1 — Selector de eventos / Wonder Cards";
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(980, 620);
         Size = new Size(1180, 760);

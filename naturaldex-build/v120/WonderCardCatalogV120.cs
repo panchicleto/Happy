@@ -121,7 +121,7 @@ internal static class WonderCardCatalogLoader
 
                 var kind = WonderCardClassifier.GetKind(gift);
                 bool shiny = gift.IsEntity && gift.IsShiny;
-                DateOnly? date = EventDateResolver.TryGetAnyVerifiedDate(gift, out var d, out _) ? d : null;
+                DateOnly? date = TryResolveReceiptDate(gift, out var d) ? d : null;
                 var (canInject, compatibility) = GetCompatibility(gift, kind, sav, date.HasValue);
                 string relative;
                 try { relative = Path.GetRelativePath(root, path); }
@@ -150,6 +150,25 @@ internal static class WonderCardCatalogLoader
             .ThenBy(z => z.CardID)
             .ThenBy(z => z.RelativePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static bool TryResolveReceiptDate(DataMysteryGift gift, out DateOnly date)
+    {
+        if (EventDateResolver.TryGetAnyVerifiedDate(gift, out date, out _))
+            return true;
+
+        // Some Switch gifts (notably many SWSH clothing WC8 cards) are deliberately
+        // not date-restricted by PKHeX.Core. Requiring a distribution window here
+        // incorrectly blocks gifts that PKHeX itself considers receivable without
+        // a server-date restriction. Use a valid Switch receipt date for the Wonder Record.
+        if (gift is IEncounterServerDate serverDate && !serverDate.IsDateRestricted)
+        {
+            date = EncounterDate.GetDateSwitch();
+            return true;
+        }
+
+        date = default;
+        return false;
     }
 
     private static (bool CanInject, string Reason) GetCompatibility(DataMysteryGift gift, WonderRewardKind kind, SaveFile sav, bool hasDate)

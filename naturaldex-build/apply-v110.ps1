@@ -132,3 +132,17 @@ $insert=@'
 $needle='	private static List<DexPlanEntry> GetNationalPlan'
 $d=$d.Insert($d.IndexOf($needle),$insert)
 Set-Content $dp $d -Encoding UTF8
+
+# Expose all three order modes in UI.
+$fp="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
+$c=Get-Content $fp -Raw
+$c=$c.Replace('_dexLayout.Items.AddRange(new object[2] { "Dex nacional (orden nacional)", "Dex base del juego (sin DLC, orden regional)" });', '_dexLayout.Items.AddRange(new object[3] { "Nacional (001 a ultimo disponible)", "Juego base (sin DLC)", "Juego base + DLC (Base - DLC1 - DLC2)" });')
+$c=$c.Replace('DexLayoutMode dexLayout = ((((ListControl)_dexLayout).SelectedIndex == 1) ? DexLayoutMode.BaseGameRegional : DexLayoutMode.National);', 'DexLayoutMode dexLayout = (DexLayoutMode)Math.Clamp(((ListControl)_dexLayout).SelectedIndex, 0, 2);')
+$c=$c.Replace('string value = ((batch.Options.DexLayout == DexLayoutMode.BaseGameRegional) ? "Base game regional dex (no DLC)" : "National order");', 'string value = ((int)batch.Options.DexLayout) switch { 1 => "Juego base (sin DLC)", 2 => "Juego base + DLC", _ => "Nacional" };')
+Set-Content $fp $c -Encoding UTF8
+$ef="NaturalDexSource/NaturalDex.Plugin/DexLayoutMode.cs"
+$e=Get-Content $ef -Raw
+if ($e -notmatch 'BasePlusDLC') {
+  $e=$e.Replace('BaseGameRegional', "BaseGameRegional," + [Environment]::NewLine + [char]9 + "BasePlusDLC")
+  Set-Content $ef $e -Encoding UTF8
+}

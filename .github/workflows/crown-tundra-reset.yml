@@ -1,0 +1,49 @@
+name: Build Crown Tundra Reset
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'naturaldex-build/SwShCrownTundraForm.cs'
+      - '.github/workflows/crown-tundra-reset.yml'
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: hexbyt3/PKHeXth
+          ref: afab45d8223f2c3356eae954c9179050c5d2f8ae
+          path: pkhexth
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Build PKHeX.Core
+        shell: pwsh
+        run: dotnet build pkhexth/PKHeX.Core/PKHeX.Core.csproj -c Release
+      - name: Prepare plugin
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force CrownTundraReset | Out-Null
+          Copy-Item naturaldex-build/SwShCrownTundraForm.cs CrownTundraReset/SwShCrownTundraForm.cs
+          $core=Get-ChildItem pkhexth/PKHeX.Core/bin/Release -Recurse -Filter PKHeX.Core.dll | Select-Object -First 1
+          Copy-Item $core.FullName CrownTundraReset/PKHeX.Core.dll
+          @'
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net9.0-windows</TargetFramework>
+              <UseWindowsForms>true</UseWindowsForms>
+              <ImplicitUsings>enable</ImplicitUsings>
+              <Nullable>enable</Nullable>
+              <AssemblyName>CrownTundraReset.Plugin</AssemblyName>
+            </PropertyGroup>
+            <ItemGroup><Reference Include="PKHeX.Core"><HintPath>PKHeX.Core.dll</HintPath><Private>false</Private></Reference></ItemGroup>
+          </Project>
+          '@ | Set-Content CrownTundraReset/CrownTundraReset.Plugin.csproj
+      - name: Compile API probe
+        shell: pwsh
+        run: dotnet build CrownTundraReset/CrownTundraReset.Plugin.csproj -c Release -o out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrownTundraReset-API-Probe
+          path: out/CrownTundraReset.Plugin.dll

@@ -35,7 +35,7 @@ jobs:
       - name: Inspect generator integration points
         shell: pwsh
         run: |
-          Get-ChildItem NaturalDexSource/NaturalDex.Plugin -Filter *.cs | ForEach-Object { Select-String -Path $_.FullName -Pattern "Event|Mystery|Gift|WC8|PreferOfficial" -Context 2,4 } | Out-File integration-points.txt
+          Get-Content NaturalDexSource/NaturalDex.Plugin/EventPokemonFactory.cs | Out-File integration-points.txt; Get-Content NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs | Add-Content integration-points.txt
       - name: Upload integration points
         uses: actions/upload-artifact@v4
         with:

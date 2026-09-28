@@ -306,7 +306,11 @@ internal static class WonderCardCatalogLoader
             return (false, "Ropa de PLA: los bloques de desbloqueo no están expuestos públicamente de forma estable.");
 
         if (!hasDate)
-            return (true, "Compatible; la fecha oficial no está resuelta. Escribe una fecha manual en la columna Fecha antes de inyectar.");
+        {
+            if (gift is IEncounterServerDate restricted && restricted.IsDateRestricted)
+                return (false, "La Wonder Card tiene una ventana oficial restringida, pero esta build no pudo resolverla con seguridad.");
+            return (true, "Compatible; la tarjeta no tiene restricción oficial de fecha. Escribe una fecha manual de recepción en la columna Fecha antes de inyectar.");
+        }
 
         return (true, "Compatible; recompensa e historial se comprobarán en un clon del save.");
     }

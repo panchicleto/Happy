@@ -86,7 +86,7 @@ internal sealed class ZAStashToolForm : Form
         {
             int start = i * EntrySize;
             ulong header = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(block.Data.Slice(start, 8));
-            byte[] raw = block.Data.Slice(start + EntityOffset, PokeCrypto.SIZE_9STORED).ToArray();
+            byte[] raw = block.Data.Slice(start + EntityOffset, new PA9().SIZE_STORED).ToArray();
             PA9 pk;
             try { pk = new PA9(raw); }
             catch { continue; }
@@ -130,8 +130,8 @@ internal sealed class ZAStashToolForm : Form
     {
         try
         {
-            string[] arr = GameInfo.Strings.Species;
-            return species < arr.Length ? arr[species] : species.ToString();
+            var arr = GameInfo.Strings.Species;
+            return species < arr.Count ? arr[species] : species.ToString();
         }
         catch { return species.ToString(); }
     }

@@ -35,7 +35,7 @@ jobs:
       - name: Inspect generator integration points
         shell: pwsh
         run: |
-          Get-ChildItem NaturalDexSource/NaturalDex.Plugin -Filter *.cs | ForEach-Object { Select-String -Path $_.FullName -Pattern "ShinyCandidates|OfficialEventEntry|TryGenerateEvent|ConvertToPKM" -Context 3,8 } | Out-File integration-points.txt
+          Get-Content NaturalDexSource/NaturalDex.Plugin/GenerationBatch.cs | Out-File integration-points.txt; Get-Content NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs | Add-Content integration-points.txt
       - name: Upload integration points
         uses: actions/upload-artifact@v4
         with:

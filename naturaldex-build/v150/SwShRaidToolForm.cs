@@ -56,14 +56,23 @@ internal sealed class SwShRaidToolForm : Form
         var activateRare = new Button { Text = "Activar todos raros", AutoSize = true };
         var deactivate = new Button { Text = "Desactivar todos", AutoSize = true };
         var refresh = new Button { Text = "Refrescar", AutoSize = true };
+        var advanced = new Button { Text = "FRAMES / SEED FINDER", AutoSize = true };
         activateCommon.Click += (_, _) => { CurrentList().ActivateAllRaids(false, false); RefreshRows(); };
         activateRare.Click += (_, _) => { CurrentList().ActivateAllRaids(true, false); RefreshRows(); };
         deactivate.Click += (_, _) => { CurrentList().DectivateAllRaids(); RefreshRows(); };
         refresh.Click += (_, _) => RefreshRows();
+        advanced.Click += (_, _) =>
+        {
+            if (_grid.CurrentRow?.Tag is not RaidSpawnDetail raid)
+                return;
+            using var form = new SwShRaidAdvancedForm(_sav, raid);
+            form.ShowDialog(this);
+        };
         top.Controls.Add(activateCommon);
         top.Controls.Add(activateRare);
         top.Controls.Add(deactivate);
         top.Controls.Add(refresh);
+        top.Controls.Add(advanced);
 
         var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, SplitterDistance = 720 };
         split.Panel1.Controls.Add(_grid);

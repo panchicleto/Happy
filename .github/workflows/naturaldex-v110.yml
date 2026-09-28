@@ -35,7 +35,7 @@ jobs:
       - name: Inspect generator integration points
         shell: pwsh
         run: |
-          Get-Content NaturalDexSource/NaturalDex.Plugin/DexPlanner.cs | Out-File integration-points.txt
+          Select-String -Path NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs -Pattern "_dex|DexLayout|BaseGameRegional|National" -Context 3,6 | Out-File integration-points.txt
       - name: Upload integration points
         uses: actions/upload-artifact@v4
         with:

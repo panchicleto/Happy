@@ -41,7 +41,15 @@ jobs:
           Copy-Item $core.FullName "NaturalDexSource/Deps/PKHeX.Core.dll" -Force
       - name: Build NaturalDex
         shell: pwsh
-        run: dotnet build "NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj" -c Release -o NaturalDexOut
+        run: |
+          dotnet build "NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj" -c Release -o NaturalDexOut 2>&1 | Tee-Object -FilePath build-v094.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NaturalDex-v0.9.4-build-log
+          path: build-v094.log
       - name: Package
         shell: pwsh
         run: |

@@ -264,6 +264,23 @@ if ($g.Contains($marker) -and $g -notmatch 'TryGenerateDirectOfficialShiny') {
   $g=$g.Replace($marker,$replacement)
 }
 
+# Deterministically insert the direct-event call before the older ALM event branch.
+if ($g -notmatch 'PKM\? official = TryGenerateDirectOfficialShiny') {
+  $dateNeedle="		DateOnly date;"
+  $dateAt=$g.IndexOf($dateNeedle)
+  if ($dateAt -lt 0) { throw "Could not locate TryGenerate DateOnly marker." }
+  $dateLineEnd=$g.IndexOf([char]10,$dateAt)
+  if ($dateLineEnd -lt 0) { throw "Could not locate end of TryGenerate DateOnly marker." }
+  $directCall="		if (shiny && _options.PreferOfficialShinyEvents && _eventCatalog != null)" + [Environment]::NewLine +
+              "		{" + [Environment]::NewLine +
+              "			PKM? official = TryGenerateDirectOfficialShiny(species, out string officialReason);" + [Environment]::NewLine +
+              "			if (official is not null)" + [Environment]::NewLine +
+              "				return official;" + [Environment]::NewLine +
+              "			text = officialReason;" + [Environment]::NewLine +
+              "		}" + [Environment]::NewLine
+  $g=$g.Insert($dateLineEnd + 1,$directCall)
+}
+
 # Direct Wonder Card -> PKM -> destination format -> legality. Fixed shiny events only.
 $helper=@'
 	private PKM? TryGenerateDirectOfficialShiny(ushort species, out string reason)

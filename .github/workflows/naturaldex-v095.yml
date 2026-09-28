@@ -27,7 +27,8 @@ jobs:
           $b64 = git show 6a8192535fcca3fd0e447f114070c8564e28adc9:naturaldex-build/v093part00.txt
           [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String(($b64 -join "")))
           Expand-Archive src.zip NaturalDexSource -Force
-          git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch\n          if ($LASTEXITCODE -ne 0) { Write-Host "v094 patch had rejects; continuing with applied hunks." }
+          git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch
+          if ($LASTEXITCODE -ne 0) { Write-Host "v094 patch had rejects; continuing with applied hunks." }
           $p="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
           $c=Get-Content $p -Raw
           $c=$c.Replace('_strictValidation.Checked, (int)_startBox.Value, (int)_retries.Value)', '_strictValidation.Checked, true, (int)_startBox.Value, (int)_retries.Value)')

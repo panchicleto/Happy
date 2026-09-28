@@ -35,7 +35,11 @@ jobs:
       - name: Inspect generator integration points
         shell: pwsh
         run: |
-          Get-ChildItem NaturalDexSource/NaturalDex.Plugin -Filter *.cs | Where-Object { $_.Name -match 'Event|Gift|Gallery|Date' } | ForEach-Object { Add-Content integration-points.txt ("`n===== " + $_.Name + " =====`n"); Get-Content $_.FullName | Add-Content integration-points.txt }
+          Get-Content NaturalDexSource/NaturalDex.Plugin/StrictPokemonValidator.cs | Out-File integration-points.txt
+          Add-Content integration-points.txt "`n===== EVENT FILES =====`n"
+          Get-ChildItem NaturalDexSource/NaturalDex.Plugin -Filter *.cs | Where-Object { $_.Name -match 'Event|Gift|Gallery' } | ForEach-Object { Add-Content integration-points.txt ("`n===== " + $_.Name + " =====`n"); Get-Content $_.FullName | Add-Content integration-points.txt }
+          Add-Content integration-points.txt "`n===== RESOLVERS =====`n"
+          Select-String -Path NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs -Pattern "TryGenerateHistoricalStaticShiny|TryGenerateDirectOfficialShiny|TryResolveOfficialEventDate" -Context 5,100 | Add-Content integration-points.txt
       - name: Upload integration points
         uses: actions/upload-artifact@v4
         with:

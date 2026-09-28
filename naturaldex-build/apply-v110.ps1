@@ -178,3 +178,41 @@ $g=$g.Replace($old,$new)
 # Historical cards must use a verified event date without being constrained by the current save's user date range.
 $g=$g.Replace('if (!EventDateResolver.TryGetDate(officialEventEntry.Gift, _options.DateFrom, _options.DateTo, _options.RandomizeDates, _rng, out date, out string reason2))', 'if (!(officialEventEntry.Generation == _sav.Generation ? EventDateResolver.TryGetDate(officialEventEntry.Gift, _options.DateFrom, _options.DateTo, _options.RandomizeDates, _rng, out date, out string reason2) : EventDateResolver.TryGetAnyVerifiedDate(officialEventEntry.Gift, out date, out reason2)))')
 Set-Content $gp $g -Encoding UTF8
+
+# Restore positional gaps: every planned dex entry consumes exactly one physical box slot.
+$fp="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
+$c=Get-Content $fp -Raw
+$old=@'
+		foreach (PKM pokemon in _batch.Pokemon)
+		{
+			if (pokemon == null)
+			{
+				continue;
+			}
+			int num2 = FindNextOpenBoxSlot(saveFile, num);
+			if (num2 < 0)
+			{
+				break;
+			}
+			list.Add((num2, pokemon));
+			num = num2 + 1;
+		}
+'@
+$new=@'
+		foreach (PKM pokemon in _batch.Pokemon)
+		{
+			// Preserve Living Dex alignment: a failed species intentionally leaves one empty slot.
+			if (pokemon == null)
+			{
+				num++;
+				continue;
+			}
+			int num2 = FindNextOpenBoxSlot(saveFile, num);
+			if (num2 < 0)
+				break;
+			list.Add((num2, pokemon));
+			num = num2 + 1;
+		}
+'@
+$c=$c.Replace($old,$new)
+Set-Content $fp $c -Encoding UTF8

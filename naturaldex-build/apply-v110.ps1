@@ -389,3 +389,11 @@ $replacement=@'
 '@
 $c=[regex]::Replace($c,$pattern,$replacement)
 Set-Content $fp $c -Encoding UTF8
+
+# Hard assertions so a green build cannot silently omit the fixes.
+$verifyGen=Get-Content "NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs" -Raw
+if ($verifyGen -notmatch 'TryGenerateDirectOfficialShiny') { throw "v1.1.0 verification failed: direct shiny event resolver missing." }
+if ($verifyGen -notmatch 'generationBatch\.EventReceipts\.Add\(_pendingEventReceipt\)') { throw "v1.1.0 verification failed: event receipt hook missing." }
+$verifyForm=Get-Content "NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs" -Raw
+if ($verifyForm -notmatch 'int requiredSpan = batch\.Pokemon\.Count;') { throw "v1.1.0 verification failed: positional gap planner missing." }
+if ($verifyForm -notmatch 'null intentionally consumes this physical slot') { throw "v1.1.0 verification failed: null gap behavior missing." }

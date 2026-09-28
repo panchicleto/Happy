@@ -219,9 +219,9 @@ internal static class WonderCardCatalogLoader
         {
             if (kind == WonderRewardKind.Pokemon)
             {
-                string name = gift.Species < GameInfo.Strings.Species.Count
-                    ? GameInfo.Strings.Species[gift.Species]
-                    : $"#{gift.Species}";
+                string name;
+                try { name = GameInfo.Strings.Species[gift.Species]; }
+                catch { name = $"#{gift.Species}"; }
                 return shinySuffix(name, gift.IsShiny);
             }
 
@@ -340,6 +340,7 @@ internal static class WonderCardCatalogLoader
     private static string ItemName(int id)
     {
         var items = GameInfo.Strings.Item;
-        return (uint)id < (uint)items.Count && !string.IsNullOrWhiteSpace(items[id]) ? items[id] : $"Item #{id}";
+        try { return !string.IsNullOrWhiteSpace(items[id]) ? items[id] : $"Item #{id}"; }
+        catch { return $"Item #{id}"; }
     }
 }

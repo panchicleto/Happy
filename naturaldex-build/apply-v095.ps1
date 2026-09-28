@@ -97,3 +97,5 @@ $m = @'
 '@
 $e = $e.Insert($pos,$m)
 Set-Content $ep $e -Encoding UTF8
+
+# rebuild diagnostics

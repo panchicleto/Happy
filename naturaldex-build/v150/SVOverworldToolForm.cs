@@ -134,8 +134,8 @@ internal sealed class SVOverworldToolForm : Form
     {
         try
         {
-            var arr = GameInfo.Strings.Species;
-            return species < arr.Count ? arr[species] : species.ToString();
+            string[] arr = GameInfo.Strings.Species;
+            return species < arr.Length ? arr[species] : species.ToString();
         }
         catch { return species.ToString(); }
     }

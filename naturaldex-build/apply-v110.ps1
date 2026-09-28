@@ -111,3 +111,24 @@ internal static class LivingDexOrderEngine
     }
 }
 '@ | Set-Content "NaturalDexSource/NaturalDex.Plugin/LivingDexOrderEngine.cs" -Encoding UTF8
+
+# Wire generator through three-mode planner.
+$dp="NaturalDexSource/NaturalDex.Plugin/DexPlanner.cs"
+$d=Get-Content $dp -Raw
+$d=$d.Replace('if (layout != DexLayoutMode.BaseGameRegional)', 'if ((int)layout == 0)')
+$d=$d.Replace('return GetBaseGamePlan(sav);', 'return GetOrderedPlan(sav, (int)layout == 2);')
+$insert=@'
+	private static List<DexPlanEntry> GetOrderedPlan(SaveFile sav, bool includeDLC)
+	{
+		var mode = includeDLC ? LivingDexOrder.BasePlusDLC : LivingDexOrder.BaseGame;
+		var species = LivingDexOrderEngine.Build(sav, mode);
+		var list = new List<DexPlanEntry>(species.Count);
+		for (int i = 0; i < species.Count; i++)
+			list.Add(new DexPlanEntry(species[i], i + 1));
+		return list;
+	}
+
+'@
+$needle='	private static List<DexPlanEntry> GetNationalPlan'
+$d=$d.Insert($d.IndexOf($needle),$insert)
+Set-Content $dp $d -Encoding UTF8

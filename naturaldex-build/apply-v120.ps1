@@ -18,10 +18,11 @@ if ($form -notmatch "public sealed partial class NaturalDexForm") {
     throw "v1.2 patch failed: could not make NaturalDexForm partial."
 }
 
-# Re-route the existing event button to the new selector/injector.
-$form = [regex]::Replace($form, '_generateEvents\.Click\s*\+=\s*GenerateEventsClick\s*;', '_generateEvents.Click += ManageEventsClick;')
-if ($form -notmatch '_generateEvents\.Click\s*\+=\s*ManageEventsClick') {
-    throw "v1.2 patch failed: event button subscription not found."
+# Keep the existing button subscription intact, but move the old implementation aside.
+# The partial class supplies a new GenerateEventsClick with the same EventHandler signature.
+$form = [regex]::Replace($form, '(?m)(\bprivate\s+async\s+void\s+)GenerateEventsClick(\s*\()', '$1LegacyGenerateEventsClick$2', 1)
+if ($form -notmatch 'LegacyGenerateEventsClick') {
+    throw "v1.2 patch failed: legacy GenerateEventsClick declaration not found."
 }
 
 $form = $form.Replace('Text = "GENERAR EVENTOS"', 'Text = "EVENTOS / WONDER CARDS"')
@@ -57,8 +58,7 @@ Set-Content $projPath $proj -Encoding UTF8
 
 # Hard assertions so a green Action cannot silently build the old event workflow.
 $verify = Get-Content $formPath -Raw
-if ($verify -notmatch 'ManageEventsClick') { throw "v1.2 verification failed: ManageEventsClick not wired." }
-if ($verify -match '_generateEvents\.Click\s*\+=\s*GenerateEventsClick') { throw "v1.2 verification failed: legacy handler is still wired." }
+if ($verify -notmatch 'LegacyGenerateEventsClick') { throw "v1.2 verification failed: legacy handler was not renamed." }
 
 $required = @(
     "$src/WonderCardCatalog.cs",

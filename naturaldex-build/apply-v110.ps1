@@ -158,3 +158,23 @@ if (pkm == null && options.EncounterSource != EncounterSourcePreference.Automati
 '@
 $g=$g.Replace($needle,$replacement)
 Set-Content $gp $g -Encoding UTF8
+
+# Shiny event cascade: current-save event first, then historical event, then normal legal shiny.
+$gp="NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs"
+$g=Get-Content $gp -Raw
+$old=@'
+			OfficialEventEntry[] array = _eventCatalog.ShinyCandidates(species).ToArray();
+			NaturalRandom.Shuffle(_rng, array.AsSpan());
+'@
+$new=@'
+			OfficialEventEntry[] allEvents = _eventCatalog.ShinyCandidates(species).ToArray();
+			OfficialEventEntry[] currentEvents = allEvents.Where(z => z.Generation == _sav.Generation).ToArray();
+			OfficialEventEntry[] historicEvents = allEvents.Where(z => z.Generation < _sav.Generation).OrderByDescending(z => z.Generation).ToArray();
+			NaturalRandom.Shuffle(_rng, currentEvents.AsSpan());
+			NaturalRandom.Shuffle(_rng, historicEvents.AsSpan());
+			OfficialEventEntry[] array = currentEvents.Concat(historicEvents).ToArray();
+'@
+$g=$g.Replace($old,$new)
+# Historical cards must use a verified event date without being constrained by the current save's user date range.
+$g=$g.Replace('if (!EventDateResolver.TryGetDate(officialEventEntry.Gift, _options.DateFrom, _options.DateTo, _options.RandomizeDates, _rng, out date, out string reason2))', 'if (!(officialEventEntry.Generation == _sav.Generation ? EventDateResolver.TryGetDate(officialEventEntry.Gift, _options.DateFrom, _options.DateTo, _options.RandomizeDates, _rng, out date, out string reason2) : EventDateResolver.TryGetAnyVerifiedDate(officialEventEntry.Gift, out date, out reason2)))')
+Set-Content $gp $g -Encoding UTF8

@@ -1,4 +1,4 @@
-name: Build NaturalDex v1.2.0
+name: Build NaturalDex v1.2.1
 on:
   push:
     branches: [ main ]
@@ -55,7 +55,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NaturalDex-v1.2.0-generated-source
+          name: NaturalDex-v1.2.1-generated-source
           path: generated-v120
 
       - name: Build PKHeX.Core
@@ -76,12 +76,12 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          Copy-Item out/NaturalDex.Plugin.dll NaturalDex.Plugin.v1.2.0.dll
-          Get-FileHash NaturalDex.Plugin.v1.2.0.dll -Algorithm SHA256 | Format-List | Out-File NaturalDex-v1.2.0.sha256.txt
+          Copy-Item out/NaturalDex.Plugin.dll NaturalDex.Plugin.v1.2.1.dll
+          Get-FileHash NaturalDex.Plugin.v1.2.1.dll -Algorithm SHA256 | Format-List | Out-File NaturalDex-v1.2.1.sha256.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NaturalDex-v1.2.0
+          name: NaturalDex-v1.2.1
           path: |
-            NaturalDex.Plugin.v1.2.0.dll
-            NaturalDex-v1.2.0.sha256.txt
+            NaturalDex.Plugin.v1.2.1.dll
+            NaturalDex-v1.2.1.sha256.txt

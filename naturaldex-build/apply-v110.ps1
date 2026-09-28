@@ -283,6 +283,35 @@ if ($g -notmatch 'PKM\? official = TryGenerateDirectOfficialShiny') {
 
 # Direct Wonder Card -> PKM -> destination format -> legality. Fixed shiny events only.
 $helper=@'
+	private ITrainerInfo CreateHistoricalTrainer(byte generation)
+	{
+		GameVersion version = generation switch
+		{
+			7 => GameVersion.SN,
+			6 => GameVersion.X,
+			5 => GameVersion.B,
+			4 => GameVersion.D,
+			3 => GameVersion.R,
+			_ => _sav.Version,
+		};
+
+		var tr = new MutableTrainerInfo(version)
+		{
+			OT = _sav.OT,
+			TID16 = _sav.TID16,
+			SID16 = _sav.SID16,
+			Gender = _sav.Gender,
+			Language = _sav.Language,
+		};
+		if (generation is 6 or 7)
+		{
+			tr.ConsoleRegion = 1;
+			tr.Country = 49;
+			tr.Region = 7;
+		}
+		return tr;
+	}
+
 	private PKM? TryGenerateDirectOfficialShiny(ushort species, out string reason)
 	{
 		reason = "No hay un evento shiny oficial fijo utilizable para esta especie.";
@@ -307,7 +336,10 @@ $helper=@'
 
 			try
 			{
-				PKM source = gift.ConvertToPKM(_sav, EncounterCriteria.Unrestricted, eventDate);
+				ITrainerInfo conversionTrainer = entry.Generation < _sav.Generation
+					? CreateHistoricalTrainer(entry.Generation)
+					: _sav;
+				PKM source = gift.ConvertToPKM(conversionTrainer, EncounterCriteria.Unrestricted, eventDate);
 				if (source.Species != species || !source.IsShiny)
 				{
 					reason = "La Wonder Card no produjo la especie shiny esperada.";
@@ -324,7 +356,8 @@ $helper=@'
 					continue;
 				}
 
-				_sav.AdaptToSaveFile(converted);
+				if (entry.Generation == _sav.Generation)
+					_sav.AdaptToSaveFile(converted);
 				var la = new LegalityAnalysis(converted, (StorageSlotType)0);
 				if (!la.Valid)
 				{
@@ -332,7 +365,7 @@ $helper=@'
 					continue;
 				}
 
-				if (_options.StrictValidation && !StrictPokemonValidator.Validate(_sav, converted, false, out string strictReason))
+				if (_options.StrictValidation && entry.Generation == _sav.Generation && !StrictPokemonValidator.Validate(_sav, converted, false, out string strictReason))
 				{
 					reason = "Validación estricta del evento: " + strictReason;
 					continue;
@@ -492,7 +525,6 @@ $helper=@'
 				return null;
 			}
 
-			_sav.AdaptToSaveFile(converted);
 			var la = new LegalityAnalysis(converted, (StorageSlotType)0);
 			if (!la.Valid)
 			{
@@ -581,3 +613,5 @@ if ($verifyGen -notmatch 'TryGenerateHistoricalStaticShiny\(species') { throw "v
 if ($verifyGen -notmatch 'new EncounterStatic7\(GameVersion\.SM\)') { throw "v1.1.0 verification failed: Type Null Gen7 static missing." }
 if ($verifyGen -notmatch 'TryResolveOfficialEventDate\(entry') { throw "v1.1.0 verification failed: Silvally official-date resolver missing." }
 if ($verifyGen -notmatch '2017, 10, 23') { throw "v1.1.0 verification failed: Aether Silvally official date missing." }
+if ($verifyGen -notmatch 'CreateHistoricalTrainer\(entry\.Generation\)') { throw "v1.1.0 verification failed: historical event trainer missing." }
+if ($verifyGen -notmatch 'entry\.Generation == _sav\.Generation') { throw "v1.1.0 verification failed: historical/current event split missing." }

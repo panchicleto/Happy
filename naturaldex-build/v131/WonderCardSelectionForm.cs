@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using PKHeX.Core;
 
 namespace NaturalDex.Plugin;
 
@@ -365,7 +366,7 @@ internal sealed class WonderCardSelectionForm : Form
         if (string.IsNullOrWhiteSpace(text))
             return;
 
-        if (!DateOnly.TryParseExact(text, "yyyy-MM-dd", out var date) ||
+        if (!DateOnly.TryParseExact(text, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var date) ||
             !EncounterDate.IsValidDateSwitch(date))
         {
             e.Cancel = true;
@@ -394,7 +395,7 @@ internal sealed class WonderCardSelectionForm : Form
             return;
         }
 
-        if (DateOnly.TryParseExact(text, "yyyy-MM-dd", out var date) &&
+        if (DateOnly.TryParseExact(text, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var date) &&
             EncounterDate.IsValidDateSwitch(date))
         {
             _dateOverrides[entry.FilePath] = date;

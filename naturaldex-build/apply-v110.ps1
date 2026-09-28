@@ -423,3 +423,161 @@ if ($verifyGen -notmatch 'generationBatch\.EventReceipts\.Add\(_pendingEventRece
 $verifyForm=Get-Content "NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs" -Raw
 if ($verifyForm -notmatch 'int requiredSpan = batch\.Pokemon\.Count;') { throw "v1.1.0 verification failed: positional gap planner missing." }
 if ($verifyForm -notmatch 'null intentionally consumes this physical slot') { throw "v1.1.0 verification failed: null gap behavior missing." }
+
+
+# v1.1.0 remaining shiny fixes: historical Gen7 Type: Null + WC7 Silvally official dates.
+$gp="NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs"
+$g=Get-Content $gp -Raw
+
+# Call historical static shiny fallback before ordinary ALM source search.
+if ($g -notmatch 'TryGenerateHistoricalStaticShiny') {
+  $needle='		EncounterSourcePreference[] sourcePlan = GetSourcePlan();'
+  $at=$g.IndexOf($needle)
+  if ($at -lt 0) { throw "Could not locate source plan insertion point." }
+  $call=@'
+		if (shiny)
+		{
+			PKM? historicalStatic = TryGenerateHistoricalStaticShiny(species, out string historicalReason);
+			if (historicalStatic is not null)
+				return historicalStatic;
+			text = historicalReason;
+		}
+'@
+  $g=$g.Insert($at,$call)
+}
+
+# Gen7 Type: Null is a legal shiny-capable in-game gift in SM/USUM.
+if ($g -notmatch 'private PKM\? TryGenerateHistoricalStaticShiny') {
+$helper=@'
+	private PKM? TryGenerateHistoricalStaticShiny(ushort species, out string reason)
+	{
+		reason = "No hay encuentro shiny histórico adicional configurado para esta especie.";
+		if (species != 772)
+			return null;
+
+		try
+		{
+			var trainer7 = new MutableTrainerInfo(GameVersion.SN)
+			{
+				OT = _sav.OT,
+				TID16 = _sav.TID16,
+				SID16 = _sav.SID16,
+				Gender = _sav.Gender,
+				Language = _sav.Language,
+				ConsoleRegion = 1,
+				Country = 49,
+				Region = 7,
+			};
+			var encounter = new EncounterStatic7(GameVersion.SM)
+			{
+				Species = 772,
+				Level = 40,
+				Location = 188,
+				FixedBall = Ball.Poke,
+				FlawlessIVCount = 3,
+			};
+			var criteria = new EncounterCriteria { Shiny = Shiny.Always };
+			PKM source = encounter.ConvertToPKM(trainer7, criteria);
+			if (!source.IsShiny)
+			{
+				reason = "El encuentro histórico de Type: Null no resultó shiny.";
+				return null;
+			}
+
+			Type destType = _sav.BlankPKM.GetType();
+			PKM? converted = EntityConverter.ConvertToType(source, destType, out _);
+			if (converted is null)
+			{
+				reason = "PKHeX no pudo convertir Type: Null de Gen 7 al formato del save.";
+				return null;
+			}
+
+			_sav.AdaptToSaveFile(converted);
+			var la = new LegalityAnalysis(converted, (StorageSlotType)0);
+			if (!la.Valid)
+			{
+				reason = "Type: Null histórico convertido no pasa LegalityAnalysis.";
+				return null;
+			}
+
+			if (_options.StrictValidation && !StrictPokemonValidator.Validate(_sav, converted, false, out string strictReason))
+			{
+				reason = "Validación estricta de Type: Null histórico: " + strictReason;
+				return null;
+			}
+
+			reason = "Type: Null shiny legal de regalo estático Gen 7; transferido al save actual.";
+			return converted;
+		}
+		catch (Exception ex)
+		{
+			reason = "Generación histórica de Type: Null: " + ex.GetBaseException().Message;
+			return null;
+		}
+	}
+
+'@
+  $methodNeedle='	private PKM? TryGenerateDirectOfficialShiny'
+  $idx=$g.IndexOf($methodNeedle)
+  if ($idx -lt 0) { throw "Could not locate direct event resolver for historical static helper." }
+  $g=$g.Insert($idx,$helper)
+}
+
+# Replace direct event date lookup with resolver that knows official Gen7 Silvally windows.
+$old='			if (!EventDateResolver.TryGetAnyVerifiedDate(gift, out DateOnly eventDate, out string dateReason))'
+$new='			if (!TryResolveOfficialEventDate(entry, out DateOnly eventDate, out string dateReason))'
+$g=$g.Replace($old,$new)
+
+if ($g -notmatch 'private static bool TryResolveOfficialEventDate') {
+$eventDateHelper=@'
+	private static bool TryResolveOfficialEventDate(OfficialEventEntry entry, out DateOnly date, out string reason)
+	{
+		if (entry.Gift is not null && EventDateResolver.TryGetAnyVerifiedDate(entry.Gift, out date, out reason))
+			return true;
+
+		// Gen 7 WC7 cards do not carry a server-date window in the pinned PKHeX API.
+		// Use documented first distribution dates for official Aether shiny Silvally cards.
+		if (entry.Generation == 7 && entry.Species == 773 && entry.IsFixedShiny)
+		{
+			string path = entry.RelativePath.Replace('\\', '/');
+			if (path.Contains("0629 SM", StringComparison.OrdinalIgnoreCase))
+			{
+				date = new DateOnly(2017, 10, 23); // American/PAL Aether Silvally distribution start.
+				reason = string.Empty;
+				return true;
+			}
+			if (path.Contains("0242 SM", StringComparison.OrdinalIgnoreCase) ||
+			    path.Contains("0262 SM", StringComparison.OrdinalIgnoreCase))
+			{
+				date = new DateOnly(2017, 9, 22); // Japan/HKTW/SEA distribution start.
+				reason = string.Empty;
+				return true;
+			}
+			if (path.Contains("1118 SM", StringComparison.OrdinalIgnoreCase))
+			{
+				date = new DateOnly(2017, 11, 18);
+				reason = string.Empty;
+				return true;
+			}
+		}
+
+		date = default;
+		reason = "No se pudo resolver una fecha oficial verificable para este evento.";
+		return false;
+	}
+
+'@
+  $methodNeedle='	private PKM? TryGenerateDirectOfficialShiny'
+  $idx=$g.IndexOf($methodNeedle)
+  if ($idx -lt 0) { throw "Could not locate direct shiny resolver for date helper." }
+  $g=$g.Insert($idx,$eventDateHelper)
+}
+
+Set-Content $gp $g -Encoding UTF8
+
+# Verify the fixes are really present in generated source.
+$verifyGen=Get-Content $gp -Raw
+if ($verifyGen -notmatch 'TryGenerateHistoricalStaticShiny\(species') { throw "v1.1.0 verification failed: Type Null historical call missing." }
+if ($verifyGen -notmatch 'new EncounterStatic7\(GameVersion\.SM\)') { throw "v1.1.0 verification failed: Type Null Gen7 static missing." }
+if ($verifyGen -notmatch 'TryResolveOfficialEventDate\(entry') { throw "v1.1.0 verification failed: Silvally official-date resolver missing." }
+if ($verifyGen -notmatch '2017, 10, 23') { throw "v1.1.0 verification failed: Aether Silvally official date missing." }

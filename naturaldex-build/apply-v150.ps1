@@ -55,7 +55,7 @@ if ($adv -notmatch 'MaxLair') { throw "v1.5 verification: Dynamax module missing
 if ($tab -notmatch 'KCurryDex') { throw "v1.5 verification: Curry module missing." }
 if ($sv -notmatch 'KOverworld') { throw "v1.5 verification: SV Overworld module missing." }
 if ($za -notmatch 'KStoredShinyEntity') { throw "v1.5 verification: ZA Shiny Stash module missing." }
-if ($pla -notmatch 'PokeCrypto.SIZE_8ASTORED') { throw "v1.5 verification: PLA NPC scanner missing." }
+if ($pla -notmatch 'PA8' -or $pla -notmatch 'SIZE_STORED') { throw "v1.5 verification: PLA NPC scanner missing." }
 if ($events -notmatch 'InitializeV150Tabs()') { throw "v1.5 verification: Switch Tools tab not wired." }
 
 Write-Host "NDX Tools v1.5.0 modules applied successfully."

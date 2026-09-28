@@ -49,6 +49,11 @@ jobs:
         run: |
           dotnet build NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj -c Release -o NaturalDexOut 2>&1 | Tee-Object build-v095.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Publish compiler log
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path build-v095.log) { Get-Content build-v095.log | Set-Content naturaldex-build/last-v095-build.log }
       - name: Upload compiler log
         if: always()
         uses: actions/upload-artifact@v4

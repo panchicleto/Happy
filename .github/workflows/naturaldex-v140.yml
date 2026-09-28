@@ -3,6 +3,8 @@ name: Build NDX Tools v1.4.0
 on:
   push:
     branches: [ ndx-tools-v140 ]
+  pull_request:
+    branches: [ main ]
     paths:
       - 'naturaldex-build/apply-v110.ps1'
       - 'naturaldex-build/apply-v120.ps1'

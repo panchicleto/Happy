@@ -35,7 +35,7 @@ jobs:
       - name: Inspect generator integration points
         shell: pwsh
         run: |
-          Get-Content NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs | Out-File integration-points.txt
+          Get-Content NaturalDexSource/NaturalDex.Plugin/OfficialEventRepository.cs | Out-File integration-points.txt; Get-Content NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs | Add-Content integration-points.txt
       - name: Upload integration points
         uses: actions/upload-artifact@v4
         with:

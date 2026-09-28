@@ -33,26 +33,15 @@ private void ClearGiftHistory_Click(object? sender, EventArgs e)
 
 '@
 $c = $c.Insert($ix,$method)
-$fieldAnchor = "private readonly Button _clearBoxes"
-$fi = $c.IndexOf($fieldAnchor)
-if ($fi -lt 0) { throw "clearBoxes field not found" }
-$lineEnd = $c.IndexOf([Environment]::NewLine, $fi)
-$c = $c.Insert($lineEnd + [Environment]::NewLine.Length, '    private readonly Button _clearGiftHistory = new Button { Text = "LIMPIAR HISTORIAL DE WONDER CARDS", AutoSize = true };' + [Environment]::NewLine)
+$fieldNeedle = "private readonly Button _cancel"
+$fi = $c.IndexOf($fieldNeedle)
+if ($fi -lt 0) { throw "cancel field not found" }
+$c = $c.Insert($fi, 'private readonly Button _clearGiftHistory = new Button { Text = "LIMPIAR HISTORIAL DE WONDER CARDS", AutoSize = true };' + [Environment]::NewLine + "    ")
 
-$wireAnchor = "_clearBoxes.Click +="
-$wi = $c.IndexOf($wireAnchor)
-if ($wi -lt 0) { throw "clearBoxes wire not found" }
-$wireEnd = $c.IndexOf(";", $wi)
-$c = $c.Insert($wireEnd + 1, [Environment]::NewLine + "        _clearGiftHistory.Click += ClearGiftHistory_Click;")
-
-$layoutAnchor = "Controls.Add((Control)(object)_clearBoxes"
-$li = $c.IndexOf($layoutAnchor)
-if ($li -lt 0) { $layoutAnchor = "Controls.Add(_clearBoxes"; $li = $c.IndexOf($layoutAnchor) }
-if ($li -lt 0) { throw "clearBoxes layout not found" }
-$layoutEnd = $c.IndexOf(";", $li)
-$layoutLine = $c.Substring($li, $layoutEnd-$li+1)
-$newLayout = $layoutLine.Replace("_clearBoxes","_clearGiftHistory")
-$c = $c.Insert($layoutEnd + 1, [Environment]::NewLine + "        " + $newLayout)
+$ctorNeedle = "InitializeComponent();"
+$ci = $c.IndexOf($ctorNeedle)
+if ($ci -lt 0) { throw "InitializeComponent not found" }
+$c = $c.Insert($ci + $ctorNeedle.Length, [Environment]::NewLine + "        _clearGiftHistory.Click += ClearGiftHistory_Click;" + [Environment]::NewLine + "        _clearGiftHistory.Dock = DockStyle.Top;" + [Environment]::NewLine + "        Controls.Add(_clearGiftHistory);" + [Environment]::NewLine + "        _clearGiftHistory.BringToFront();")
 
 Set-Content $fp $c -Encoding UTF8
 

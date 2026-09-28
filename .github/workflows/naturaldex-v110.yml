@@ -35,7 +35,7 @@ jobs:
       - name: Inspect generator integration points
         shell: pwsh
         run: |
-          Select-String -Path NaturalDexSource/NaturalDex.Plugin/*.cs -Pattern "Legend|Myth|Static|Gift|EncounterSource|TryGenerate|GetLegal|Species|IsEntity|Skip" -Context 2,5 | Out-File integration-points.txt
+          Get-Content NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs | Out-File integration-points.txt
       - name: Upload integration points
         uses: actions/upload-artifact@v4
         with:

@@ -35,11 +35,7 @@ jobs:
       - name: Inspect generator integration points
         shell: pwsh
         run: |
-          Get-Content NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs | Out-File integration-points.txt
-          Add-Content integration-points.txt "`n===== GENERATION BATCH =====`n"
-          Get-Content NaturalDexSource/NaturalDex.Plugin/GenerationBatch.cs | Add-Content integration-points.txt
-          Add-Content integration-points.txt "`n===== IMPORT FORM =====`n"
-          Select-String -Path NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs -Pattern "BuildInsertion|FindNextOpenBoxSlot|batch.Pokemon|SetBoxSlotAtIndex|Pokemon == null" -Context 8,18 | Add-Content integration-points.txt
+          Get-ChildItem NaturalDexSource/NaturalDex.Plugin -Filter *.cs | Where-Object { $_.Name -match 'Event|Gift|Gallery|Date' } | ForEach-Object { Add-Content integration-points.txt ("`n===== " + $_.Name + " =====`n"); Get-Content $_.FullName | Add-Content integration-points.txt }
       - name: Upload integration points
         uses: actions/upload-artifact@v4
         with:

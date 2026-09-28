@@ -146,3 +146,15 @@ if ($e -notmatch 'BasePlusDLC') {
   $e=$e.Replace('BaseGameRegional', "BaseGameRegional," + [Environment]::NewLine + [char]9 + "BasePlusDLC")
   Set-Content $ef $e -Encoding UTF8
 }
+
+# Legendary/static/gift fallback: retry constrained failures through ALM Automatic.
+$gp="NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs"
+$g=Get-Content $gp -Raw
+$needle="if (pkm == null)"
+$replacement=@'
+if (pkm == null && options.EncounterSource != EncounterSourcePreference.Automatic)
+				pkm = TryGenerateOne(entry.Species, entry.Form, options with { EncounterSource = EncounterSourcePreference.Automatic, EncounterFallback = EncounterFallbackMode.AllowAnyLegal }, trainer, game, false, out _);
+			if (pkm == null)
+'@
+$g=$g.Replace($needle,$replacement)
+Set-Content $gp $g -Encoding UTF8

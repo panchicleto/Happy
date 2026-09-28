@@ -46,7 +46,7 @@ diff -ruN a/NaturalDex.Plugin/NaturalDexForm.cs b/NaturalDex.Plugin/NaturalDexFo
 @@ -898,13 +906,14 @@
 -			$"NaturalDex v0.9.3 — {batch.Title} — {DateTime.Now}",
 +			$"NaturalDex v0.9.4 — {batch.Title} — {DateTime.Now}",
-@@
+@@ -898,13 +906,14 @@
  			$"Strict Validation: {(batch.Options.StrictValidation ? "ACTIVADA" : "desactivada")} | Importación transaccional + backup automático",
 +			$"Versión hermana: {(batch.Options.SisterVersionFallback ? "fallback ACTIVADO" : "desactivado")} | origen real conservado",
 @@ -1108,9 +1117,15 @@
@@ -73,24 +73,63 @@ diff -ruN a/NaturalDex.Plugin/NaturalDexGenerator.cs b/NaturalDex.Plugin/Natural
 +				generationBatch.EventReceipts.Add(new EventReceiptPlan(acceptedGift, giftDate, "NaturalDex Living Dex / Wonder Card audit"));
 +			GameVersion? sister = GetSisterVersion(_sav.Version);
 +			string sisterTag = _options.SisterVersionFallback && sister.HasValue && val.Version == sister.Value ? $"; ORIGEN HERMANA: {sister.Value}" : string.Empty;
-@@
 -			generationBatch.Log.Add(new GenerationLogEntry(species, speciesNameGeneration, "OK", $"{value}Lv.{val.CurrentLevel}; {EncounterSourceUtil.DisplayName(source)}; {val.MetDate?.ToString() ?? "no met date"}{history}; Naturalidad {naturalScore}/100."));
 +			generationBatch.Log.Add(new GenerationLogEntry(species, speciesNameGeneration, "OK", $"{value}Lv.{val.CurrentLevel}; {EncounterSourceUtil.DisplayName(source)}; {val.MetDate?.ToString() ?? "no met date"}{history}{sisterTag}; Naturalidad {naturalScore}/100."));
 @@ -415,60 +420,50 @@
+ 
  	private GameVersion[] GetCurrentGameFamilyVersions()
  	{
+-		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+-		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+-		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+-		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+-		//IL_003d: Expected I4, but got Unknown
+-		//IL_00ee: Unknown result type (might be due to invalid IL or missing references)
+-		//IL_00f4: Expected I4, but got Unknown
 -		GameVersion version = _sav.Version;
 -		return ((int)version - 42) switch
 -		{
--			2 => new GameVersion[2] { (GameVersion)44, (GameVersion)45 },
--			3 => new GameVersion[2] { (GameVersion)45, (GameVersion)44 },
--			6 => new GameVersion[2] { (GameVersion)48, (GameVersion)49 },
--			7 => new GameVersion[2] { (GameVersion)49, (GameVersion)48 },
--			8 => new GameVersion[2] { (GameVersion)50, (GameVersion)51 },
--			9 => new GameVersion[2] { (GameVersion)51, (GameVersion)50 },
--			0 => new GameVersion[2] { (GameVersion)42, (GameVersion)43 },
--			1 => new GameVersion[2] { (GameVersion)43, (GameVersion)42 },
--			_ => new GameVersion[1] { (GameVersion)(int)_sav.Version },
+-			2 => new GameVersion[2]
+-			{
+-				(GameVersion)44,
+-				(GameVersion)45
+-			}, 
+-			3 => new GameVersion[2]
+-			{
+-				(GameVersion)45,
+-				(GameVersion)44
+-			}, 
+-			6 => new GameVersion[2]
+-			{
+-				(GameVersion)48,
+-				(GameVersion)49
+-			}, 
+-			7 => new GameVersion[2]
+-			{
+-				(GameVersion)49,
+-				(GameVersion)48
+-			}, 
+-			8 => new GameVersion[2]
+-			{
+-				(GameVersion)50,
+-				(GameVersion)51
+-			}, 
+-			9 => new GameVersion[2]
+-			{
+-				(GameVersion)51,
+-				(GameVersion)50
+-			}, 
+-			0 => new GameVersion[2]
+-			{
+-				(GameVersion)42,
+-				(GameVersion)43
+-			}, 
+-			1 => new GameVersion[2]
+-			{
+-				(GameVersion)43,
+-				(GameVersion)42
+-			}, 
+-			_ => new GameVersion[1] { (GameVersion)(int)_sav.Version }, 
 -		};
 +		GameVersion current = _sav.Version;
 +		if (!_options.SisterVersionFallback)
@@ -98,36 +137,55 @@ diff -ruN a/NaturalDex.Plugin/NaturalDexGenerator.cs b/NaturalDex.Plugin/Natural
 +		GameVersion? sister = GetSisterVersion(current);
 +		return sister.HasValue ? new[] { current, sister.Value } : new[] { current };
  	}
-+
+ 
 +	private static GameVersion? GetSisterVersion(GameVersion version) => version switch
 +	{
-+		GameVersion.RD => GameVersion.GN, GameVersion.GN => GameVersion.RD,
-+		GameVersion.GD => GameVersion.SI, GameVersion.SI => GameVersion.GD,
-+		GameVersion.R => GameVersion.S, GameVersion.S => GameVersion.R,
-+		GameVersion.FR => GameVersion.LG, GameVersion.LG => GameVersion.FR,
-+		GameVersion.D => GameVersion.P, GameVersion.P => GameVersion.D,
-+		GameVersion.HG => GameVersion.SS, GameVersion.SS => GameVersion.HG,
-+		GameVersion.B => GameVersion.W, GameVersion.W => GameVersion.B,
-+		GameVersion.B2 => GameVersion.W2, GameVersion.W2 => GameVersion.B2,
-+		GameVersion.X => GameVersion.Y, GameVersion.Y => GameVersion.X,
-+		GameVersion.OR => GameVersion.AS, GameVersion.AS => GameVersion.OR,
-+		GameVersion.SN => GameVersion.MN, GameVersion.MN => GameVersion.SN,
-+		GameVersion.US => GameVersion.UM, GameVersion.UM => GameVersion.US,
-+		GameVersion.GP => GameVersion.GE, GameVersion.GE => GameVersion.GP,
-+		GameVersion.SW => GameVersion.SH, GameVersion.SH => GameVersion.SW,
-+		GameVersion.BD => GameVersion.SP, GameVersion.SP => GameVersion.BD,
-+		GameVersion.SL => GameVersion.VL, GameVersion.VL => GameVersion.SL,
++		GameVersion.RD => GameVersion.GN,
++		GameVersion.GN => GameVersion.RD,
++		GameVersion.GD => GameVersion.SI,
++		GameVersion.SI => GameVersion.GD,
++		GameVersion.R => GameVersion.S,
++		GameVersion.S => GameVersion.R,
++		GameVersion.FR => GameVersion.LG,
++		GameVersion.LG => GameVersion.FR,
++		GameVersion.D => GameVersion.P,
++		GameVersion.P => GameVersion.D,
++		GameVersion.HG => GameVersion.SS,
++		GameVersion.SS => GameVersion.HG,
++		GameVersion.B => GameVersion.W,
++		GameVersion.W => GameVersion.B,
++		GameVersion.B2 => GameVersion.W2,
++		GameVersion.W2 => GameVersion.B2,
++		GameVersion.X => GameVersion.Y,
++		GameVersion.Y => GameVersion.X,
++		GameVersion.OR => GameVersion.AS,
++		GameVersion.AS => GameVersion.OR,
++		GameVersion.SN => GameVersion.MN,
++		GameVersion.MN => GameVersion.SN,
++		GameVersion.US => GameVersion.UM,
++		GameVersion.UM => GameVersion.US,
++		GameVersion.GP => GameVersion.GE,
++		GameVersion.GE => GameVersion.GP,
++		GameVersion.SW => GameVersion.SH,
++		GameVersion.SH => GameVersion.SW,
++		GameVersion.BD => GameVersion.SP,
++		GameVersion.SP => GameVersion.BD,
++		GameVersion.SL => GameVersion.VL,
++		GameVersion.VL => GameVersion.SL,
 +		_ => null,
 +	};
++
+ 	private bool TryApplyEggStageLevel(PKM source, LegalityAnalysis la, out PKM result, out string reason)
+ 	{
 diff -ruN a/NaturalDex.Plugin/NaturalDexOptions.cs b/NaturalDex.Plugin/NaturalDexOptions.cs
 --- a/NaturalDex.Plugin/NaturalDexOptions.cs
 +++ b/NaturalDex.Plugin/NaturalDexOptions.cs
-@@
+@@ -4,4 +4,4 @@
 -public sealed record NaturalDexOptions(DexMode Mode, DexLayoutMode DexLayout, EncounterSourcePreference EncounterSource, EncounterFallbackMode EncounterFallback, int MinLevel, int MaxLevel, bool RandomMoves, bool RandomNature, bool NaturalIVs, bool NaturalEVs, BallSelectionMode BallMode, Ball? FixedBall, DateOnly DateFrom, DateOnly DateTo, bool RandomizeDates, bool StrictCurrentTrainer, bool SkipExisting, bool PreferOfficialShinyEvents, bool AdventureHistory, bool MysteryGiftHistory, bool StrictValidation, int StartBox, int MaxRetries);
 +public sealed record NaturalDexOptions(DexMode Mode, DexLayoutMode DexLayout, EncounterSourcePreference EncounterSource, EncounterFallbackMode EncounterFallback, int MinLevel, int MaxLevel, bool RandomMoves, bool RandomNature, bool NaturalIVs, bool NaturalEVs, BallSelectionMode BallMode, Ball? FixedBall, DateOnly DateFrom, DateOnly DateTo, bool RandomizeDates, bool StrictCurrentTrainer, bool SkipExisting, bool PreferOfficialShinyEvents, bool AdventureHistory, bool MysteryGiftHistory, bool StrictValidation, bool SisterVersionFallback, int StartBox, int MaxRetries);
 diff -ruN a/Properties/AssemblyInfo.cs b/Properties/AssemblyInfo.cs
 --- a/Properties/AssemblyInfo.cs
 +++ b/Properties/AssemblyInfo.cs
-@@
+@@ -6,7 +6,7 @@
 -[assembly: AssemblyInformationalVersion("0.9.3") ]
 +[assembly: AssemblyInformationalVersion("0.9.4") ]

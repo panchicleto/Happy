@@ -71,3 +71,5 @@ foreach ($file in $required) {
 }
 
 Write-Host "NaturalDex v1.2.0 event selector/injector source patch applied."
+
+# v1.2.0 build trigger: compile from the complete selector/injector patch set.

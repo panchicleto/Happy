@@ -27,7 +27,9 @@ jobs:
           Expand-Archive src.zip NaturalDexSource -Force
       - name: Apply v0.9.4 patch
         shell: pwsh
-        run: |\n          git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch\n          exit 0
+        run: |
+          git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch
+          exit 0
       - name: Build matching PKHeX.Core
         shell: pwsh
         run: dotnet build "pkhexth/PKHeX.Core/PKHeX.Core.csproj" -c Release

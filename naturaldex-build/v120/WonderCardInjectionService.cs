@@ -466,12 +466,19 @@ internal static class WonderCardInjectionService
     private static bool ApplyClothingSWSH(SAV8SWSH sav, WC8 card, out string message)
     {
         int applied = 0;
+
+        // WC8 clothing payload contains two sets of six entries:
+        // 0x20..0x4F for masculine appearance and 0x50..0x7F for feminine appearance.
+        // Use the set that matches the player's actual appearance so the save does not
+        // receive fashion indexes belonging to the opposite model.
+        int genderBlock = sav.MyStatus.GenderAppearance == 0 ? 0x20 : 0x50;
+
         for (int i = 0; i < 6; i++)
         {
-            int ofs = 0x20 + (8 * i);
+            int ofs = genderBlock + (8 * i);
             ushort region = BinaryPrimitives.ReadUInt16LittleEndian(card.Data[ofs..]);
             ushort index = BinaryPrimitives.ReadUInt16LittleEndian(card.Data[(ofs + 4)..]);
-            if (index == ushort.MaxValue)
+            if (region == 0 || region == ushort.MaxValue || index == ushort.MaxValue)
                 continue;
             if (region is < FashionUnlock8.REGION_EYEWEAR or > FashionUnlock8.REGION_FOOTWEAR)
             {

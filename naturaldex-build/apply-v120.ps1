@@ -26,19 +26,19 @@ if ($form -notmatch 'LegacyGenerateEventsClick') {
 }
 
 $form = $form.Replace('Text = "GENERAR EVENTOS"', 'Text = "EVENTOS / WONDER CARDS"')
-$form = $form.Replace("NaturalDex v1.1.0 — Living Dex + Wonder Cards", "NaturalDex v1.2.0 — Event Injector + Living Dex")
-$form = $form.Replace("NaturalDex v0.9.3", "NaturalDex v1.2.0")
-$form = $form.Replace("NaturalDex v0.9.4", "NaturalDex v1.2.0")
+$form = $form.Replace("NaturalDex v1.1.0 — Living Dex + Wonder Cards", "NaturalDex v1.2.1 — Event Injector + Living Dex")
+$form = $form.Replace("NaturalDex v0.9.3", "NaturalDex v1.2.1")
+$form = $form.Replace("NaturalDex v0.9.4", "NaturalDex v1.2.1")
 Set-Content $formPath $form -Encoding UTF8
 
 # Keep version text consistent in source-generated reports / headers.
 Get-ChildItem $src -Filter *.cs | ForEach-Object {
     $c = Get-Content $_.FullName -Raw
-    $c = $c.Replace("NaturalDex v1.1.0", "NaturalDex v1.2.0")
-    $c = $c.Replace("NaturalDex v0.9.3", "NaturalDex v1.2.0")
-    $c = $c.Replace("NaturalDex v0.9.4", "NaturalDex v1.2.0")
-    $c = $c.Replace("NaturalDex/0.7.0", "NaturalDex/1.2.0")
-    $c = $c.Replace("NaturalDex 0.7.0", "NaturalDex 1.2.0")
+    $c = $c.Replace("NaturalDex v1.1.0", "NaturalDex v1.2.1")
+    $c = $c.Replace("NaturalDex v0.9.3", "NaturalDex v1.2.1")
+    $c = $c.Replace("NaturalDex v0.9.4", "NaturalDex v1.2.1")
+    $c = $c.Replace("NaturalDex/0.7.0", "NaturalDex/1.2.1")
+    $c = $c.Replace("NaturalDex 0.7.0", "NaturalDex 1.2.1")
     Set-Content $_.FullName $c -Encoding UTF8
 }
 
@@ -47,10 +47,10 @@ $projPath = "NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj"
 $proj = Get-Content $projPath -Raw
 if ($proj -notmatch '<Version>1\.2\.0</Version>') {
     $versionBlock = @"
-    <Version>1.2.0</Version>
-    <FileVersion>1.2.0.0</FileVersion>
-    <AssemblyVersion>1.2.0.0</AssemblyVersion>
-    <InformationalVersion>1.2.0</InformationalVersion>
+    <Version>1.2.1</Version>
+    <FileVersion>1.2.1.0</FileVersion>
+    <AssemblyVersion>1.2.1.0</AssemblyVersion>
+    <InformationalVersion>1.2.1</InformationalVersion>
 "@
     $proj = [regex]::Replace($proj, '<PropertyGroup>', "<PropertyGroup>`r`n$versionBlock", 1)
 }
@@ -70,6 +70,6 @@ foreach ($file in $required) {
     if (!(Test-Path $file)) { throw "v1.2 verification failed: missing $file" }
 }
 
-Write-Host "NaturalDex v1.2.0 event selector/injector source patch applied."
+Write-Host "NaturalDex v1.2.1 event selector/injector source patch applied."
 
-# v1.2.0 build trigger: compile from the complete selector/injector patch set.
+# v1.2.1 build trigger: compile from the complete selector/injector patch set.

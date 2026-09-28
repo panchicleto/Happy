@@ -1,0 +1,50 @@
+name: Build NaturalDex v0.9.4 Audit Sister Fallback
+on:
+  push:
+    branches: [ main ]
+    paths: ['naturaldex-build/v094part00.txt','.github/workflows/naturaldex-v094.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout matching PKHeXth
+        uses: actions/checkout@v4
+        with:
+          repository: hexbyt3/PKHeXth
+          ref: afab45d8223f2c3356eae954c9179050c5d2f8ae
+          path: pkhexth
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 9.0.x }
+      - name: Reassemble source
+        shell: pwsh
+        run: |
+          $b64=Get-Content "naturaldex-build/v094part00.txt" -Raw
+          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String($b64))
+          Expand-Archive src.zip NaturalDexSource -Force
+      - name: Build matching PKHeX.Core
+        shell: pwsh
+        run: dotnet build "pkhexth/PKHeX.Core/PKHeX.Core.csproj" -c Release
+      - name: Copy PKHeX.Core
+        shell: pwsh
+        run: |
+          $core=Get-ChildItem "pkhexth/PKHeX.Core/bin/Release" -Recurse -Filter "PKHeX.Core.dll" | Select-Object -First 1
+          New-Item -ItemType Directory -Force "NaturalDexSource/Deps" | Out-Null
+          Copy-Item $core.FullName "NaturalDexSource/Deps/PKHeX.Core.dll" -Force
+      - name: Build NaturalDex
+        shell: pwsh
+        run: dotnet build "NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj" -c Release -o NaturalDexOut
+      - name: Package
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "NaturalDexOut/NaturalDex.Plugin.dll")) { throw "DLL not produced" }
+          Copy-Item "NaturalDexOut/NaturalDex.Plugin.dll" "NaturalDex.Plugin.v0.9.4-Audit-SisterFallback.dll"
+          Copy-Item "NaturalDexSource/CHANGELOG-v0.9.4.txt" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NaturalDex-v0.9.4-Audit-SisterFallback
+          path: |
+            NaturalDex.Plugin.v0.9.4-Audit-SisterFallback.dll
+            CHANGELOG-v0.9.4.txt
+            NaturalDexOut/*.pdb

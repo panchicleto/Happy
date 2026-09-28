@@ -40,7 +40,7 @@ public sealed partial class NaturalDexForm
         {
             AutoSize = true,
             Font = new System.Drawing.Font(System.Drawing.SystemFonts.MessageBoxFont.FontFamily, 14f, System.Drawing.FontStyle.Bold),
-            Text = "NDX Switch Tools v1.5.0",
+            Text = "NDX Switch Tools v1.6.0",
         }, 0, 0);
 
         root.Controls.Add(new Label
@@ -50,7 +50,8 @@ public sealed partial class NaturalDexForm
             Padding = new Padding(0, 4, 0, 12),
             Text =
                 "Módulos integrados sobre NaturalDex v1.3.1. Sólo se muestran herramientas compatibles con el save abierto. " +
-                "Los editores trabajan sobre un clon y crean backup antes de aplicar cambios.",
+                "Los editores trabajan sobre un clon y crean backup antes de aplicar cambios.\r\n" +
+                NDXCompatibility.Summary,
         }, 0, 1);
 
         var current = new GroupBox
@@ -72,6 +73,7 @@ public sealed partial class NaturalDexForm
             AddToolButton(flow, "SWSH Raid Viewer / Editor", OpenSwShRaidTool);
             AddToolButton(flow, "Dynamax Adventure / Crown Tundra", OpenSwShAdventureTool);
             AddToolButton(flow, "Curry Dex — Importar / Exportar bloque", OpenCurryDexTool);
+            AddToolButton(flow, "Poké Camp", OpenSwShPokeCampTool);
         }
         else if (sav is SAV8LA)
         {
@@ -111,7 +113,7 @@ public sealed partial class NaturalDexForm
             Text =
                 "Wonder Records Tool → integrado en Eventos / Wonder Cards: importación de WC, historial de regalo, fecha y validación.\r\n" +
                 "Dynamax Adventure Reset → integrado en el módulo Crown Tundra.\r\n" +
-                "SWSH Raid Plugin → visor/editor de dens nativo; se conservan Hash, Seed, Stars, Roll, tipo y flags.\r\n" +
+                "SWSH Raid Plugin → visor/editor de dens nativo + analizador de frames + Seed Finder usando la reversión Xoroshiro de PKHeX.Core.\r\n" +
                 "Complete Curry Dex Block → importación/exportación segura del bloque KCurryDex.\r\n" +
                 "SV Overworld Viewer → visor de las 20 entradas almacenadas y extracción de PK9.\r\n" +
                 "Shiny Stash Map → visor/extractor del stash de Z-A; el mapa/teleport live no se escribe si no hay conexión validada.\r\n" +
@@ -185,9 +187,11 @@ public sealed partial class NaturalDexForm
         });
         var export = new Button { Text = "EXPORTAR KCurryDex...", AutoSize = true };
         var import = new Button { Text = "IMPORTAR KCurryDex...", AutoSize = true };
+        var sync151 = new Button { Text = "SINCRONIZAR CONTADORES A 151", AutoSize = true };
         var close = new Button { Text = "Cerrar", AutoSize = true };
         panel.Controls.Add(export);
         panel.Controls.Add(import);
+        panel.Controls.Add(sync151);
         panel.Controls.Add(close);
         picker.Controls.Add(panel);
 
@@ -214,6 +218,7 @@ public sealed partial class NaturalDexForm
 
             var work = (SAV8SWSH)live.Clone();
             work.Blocks.GetBlock(KCurryDex).ChangeData(data);
+            SyncCurry151(work);
             if (MessageBox.Show(picker,
                     "El bloque tiene el tamaño correcto. ¿Aplicarlo al save abierto? Se creará un backup.",
                     "NDX — Curry Dex", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
@@ -223,8 +228,40 @@ public sealed partial class NaturalDexForm
             picker.Close();
         };
 
+        sync151.Click += (_, _) =>
+        {
+            var work = (SAV8SWSH)live.Clone();
+            SyncCurry151(work);
+            if (MessageBox.Show(picker,
+                    "Esto ajustará únicamente los contadores coherentes para una Curry Dex completa: Trainer Card=151, campin=2, cooking=302 y recipe=151.\r\n\r\nNo inventa el contenido del bloque KCurryDex; úsalo después de importar un bloque completo. ¿Aplicar?",
+                    "NDX — Curry Dex", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+            CommitSwitchClone(live, work, "Curry Dex counters");
+        };
+
         close.Click += (_, _) => picker.Close();
         picker.ShowDialog(this);
+    }
+
+    private void OpenSwShPokeCampTool(object? sender, EventArgs e)
+    {
+        if (_provider.SAV is not SAV8SWSH live)
+            return;
+
+        var work = (SAV8SWSH)live.Clone();
+        using var form = new SwShPokeCampToolForm(work);
+        if (form.ShowDialog(this) != DialogResult.OK)
+            return;
+        CommitSwitchClone(live, work, "Poké Camp");
+    }
+
+    private static void SyncCurry151(SAV8SWSH sav)
+    {
+        sav.Blocks.TrainerCard.CurryTypesOwned = 151;
+        sav.SetRecord(24, 2);   // campin
+        sav.SetRecord(34, 302); // cooking
+        sav.SetRecord(42, 151); // recipe
+        sav.State.Edited = true;
     }
 
     private void OpenSVOverworldTool(object? sender, EventArgs e)

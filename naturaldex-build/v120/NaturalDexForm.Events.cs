@@ -9,7 +9,7 @@ namespace NaturalDex.Plugin;
 
 public sealed partial class NaturalDexForm
 {
-    private async void ManageEventsClick(object? sender, EventArgs e)
+    private async void GenerateEventsClick(object? sender, EventArgs e)
     {
         if (_cts is not null)
             return;

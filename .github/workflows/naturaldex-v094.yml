@@ -22,9 +22,12 @@ jobs:
       - name: Reassemble source
         shell: pwsh
         run: |
-          $b64=Get-Content "naturaldex-build/v094part00.txt" -Raw
-          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String($b64))
+          $b64 = git show 6a8192535fcca3fd0e447f114070c8564e28adc9:naturaldex-build/v093part00.txt
+          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String(($b64 -join "")))
           Expand-Archive src.zip NaturalDexSource -Force
+      - name: Apply v0.9.4 patch
+        shell: pwsh
+        run: git -C NaturalDexSource apply ../naturaldex-build/v094.patch
       - name: Build matching PKHeX.Core
         shell: pwsh
         run: dotnet build "pkhexth/PKHeX.Core/PKHeX.Core.csproj" -c Release

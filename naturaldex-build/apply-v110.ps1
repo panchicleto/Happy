@@ -38,3 +38,76 @@ internal static class WonderCardClassifier
     };
 }
 '@ | Set-Content "NaturalDexSource/NaturalDex.Plugin/WonderCardCatalog.cs" -Encoding UTF8
+
+@'
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using PKHeX.Core;
+namespace NaturalDex.Plugin;
+internal enum LivingDexOrder { National, BaseGame, BasePlusDLC }
+internal static class LivingDexOrderEngine
+{
+    public static IReadOnlyList<ushort> Build(SaveFile sav, LivingDexOrder order)
+    {
+        int max = sav.MaxSpeciesID;
+        if (order == LivingDexOrder.National)
+            return Enumerable.Range(1, max).Select(z => (ushort)z).ToArray();
+
+        if (sav is SAV8SWSH)
+            return BuildSWSH(max, order == LivingDexOrder.BasePlusDLC);
+        if (sav is SAV9SV)
+            return BuildSV(max, order == LivingDexOrder.BasePlusDLC);
+
+        // Games without a split DLC dex: use species present in the game's personal table.
+        var table = sav.Personal;
+        var list = new List<ushort>();
+        for (ushort species=1; species<=max; species++)
+            if (table[species].IsPresentInGame)
+                list.Add(species);
+        return list;
+    }
+
+    private static IReadOnlyList<ushort> BuildSWSH(int max, bool dlc)
+    {
+        var t=PersonalTable.SWSH;
+        var baseDex=new List<(ushort s,ushort i)>();
+        var armor=new List<(ushort s,ushort i)>();
+        var crown=new List<(ushort s,ushort i)>();
+        for(ushort s=1;s<=max;s++)
+        {
+            var p=t[s];
+            if(p.PokeDexIndex!=0) baseDex.Add((s,p.PokeDexIndex));
+            if(dlc && p.ArmorDexIndex!=0) armor.Add((s,p.ArmorDexIndex));
+            if(dlc && p.CrownDexIndex!=0) crown.Add((s,p.CrownDexIndex));
+        }
+        return Merge(baseDex,armor,crown);
+    }
+
+    private static IReadOnlyList<ushort> BuildSV(int max, bool dlc)
+    {
+        var t=PersonalTable.SV;
+        var paldea=new List<(ushort s,ushort i)>();
+        var kita=new List<(ushort s,ushort i)>();
+        var blue=new List<(ushort s,ushort i)>();
+        for(ushort s=1;s<=max;s++)
+        {
+            var p=t[s];
+            if(p.DexPaldea!=0) paldea.Add((s,p.DexPaldea));
+            if(dlc && p.DexKitakami!=0) kita.Add((s,p.DexKitakami));
+            if(dlc && p.DexBlueberry!=0) blue.Add((s,p.DexBlueberry));
+        }
+        return Merge(paldea,kita,blue);
+    }
+
+    private static IReadOnlyList<ushort> Merge(params List<(ushort s,ushort i)>[] groups)
+    {
+        var seen=new HashSet<ushort>();
+        var result=new List<ushort>();
+        foreach(var group in groups)
+            foreach(var x in group.OrderBy(z=>z.i).ThenBy(z=>z.s))
+                if(seen.Add(x.s)) result.Add(x.s);
+        return result;
+    }
+}
+'@ | Set-Content "NaturalDexSource/NaturalDex.Plugin/LivingDexOrderEngine.cs" -Encoding UTF8

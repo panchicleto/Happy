@@ -81,7 +81,7 @@ internal sealed class SVOverworldToolForm : Form
             return;
         }
 
-        int entitySize = PokeCrypto.SIZE_9STORED;
+        int entitySize = new PK9().SIZE_STORED;
         int stride = entitySize + Extra;
         int available = Math.Min(Entries, block.Data.Length / stride);
         for (int i = 0; i < available; i++)
@@ -134,8 +134,8 @@ internal sealed class SVOverworldToolForm : Form
     {
         try
         {
-            string[] arr = GameInfo.Strings.Species;
-            return species < arr.Length ? arr[species] : species.ToString();
+            var arr = GameInfo.Strings.Species;
+            return species < arr.Count ? arr[species] : species.ToString();
         }
         catch { return species.ToString(); }
     }

@@ -4,7 +4,8 @@ $c = Get-Content $fp -Raw
 $c = $c.Replace("NaturalDex v0.9.3 PKHeXth — Strict Validation","NaturalDex v0.9.5 PKHeXth — Gift Cleanup")
 $anchor = "private void ClearBoxes_Click"
 $ix = $c.IndexOf($anchor)
-if ($ix -lt 0) { throw "ClearBoxes_Click not found" }
+if ($ix -lt 0) { $anchor = "private void ClearBoxes"; $ix = $c.IndexOf($anchor) }
+if ($ix -lt 0) { throw "ClearBoxes method not found" }
 $method = @'
 private void ClearGiftHistory_Click(object? sender, EventArgs e)
 {

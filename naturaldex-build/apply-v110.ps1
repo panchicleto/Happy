@@ -216,3 +216,176 @@ $new=@'
 '@
 $c=$c.Replace($old,$new)
 Set-Content $fp $c -Encoding UTF8
+
+# v1.1.0 legendary/event fix: direct official shiny gift conversion + truly positional box gaps.
+$gp="NaturalDexSource/NaturalDex.Plugin/NaturalDexGenerator.cs"
+$g=Get-Content $gp -Raw
+
+# Track the receipt only when the exact card is receivable by the currently opened save.
+if ($g -notmatch '_pendingEventReceipt') {
+  $fieldNeedle='	private AdventureHistoryPlanner? _history;'
+  $g=$g.Replace($fieldNeedle, $fieldNeedle + [Environment]::NewLine + [Environment]::NewLine + '	private EventReceiptPlan? _pendingEventReceipt;')
+}
+
+# Every dex plan entry must have a corresponding batch entry, even skips.
+$g=$g.Replace('				progress?.Report(new GenerationProgress(completed, count, $"#{species} skipped"));' + [Environment]::NewLine + '				continue;',
+'				generationBatch.Pokemon.Add(null);' + [Environment]::NewLine + '				progress?.Report(new GenerationProgress(completed, count, $"#{species} skipped"));' + [Environment]::NewLine + '				continue;')
+$g=$g.Replace('				progress?.Report(new GenerationProgress(completed, count, speciesNameGeneration + ": already present"));' + [Environment]::NewLine + '				continue;',
+'				generationBatch.Pokemon.Add(null);' + [Environment]::NewLine + '				progress?.Report(new GenerationProgress(completed, count, speciesNameGeneration + ": already present"));' + [Environment]::NewLine + '				continue;')
+
+# Reset per-species receipt before generation.
+$g=$g.Replace('			PKM val = null;' + [Environment]::NewLine + '			string text = "No legal result.";',
+'			PKM val = null;' + [Environment]::NewLine + '			_pendingEventReceipt = null;' + [Environment]::NewLine + '			string text = "No legal result.";')
+
+# Commit current-save Wonder Record only after that Pokemon actually succeeded.
+$g=$g.Replace('			generationBatch.Pokemon.Add(val);' + [Environment]::NewLine + '			EncounterSourcePreference source =',
+'			generationBatch.Pokemon.Add(val);' + [Environment]::NewLine + '			if (_pendingEventReceipt is not null)' + [Environment]::NewLine + '				generationBatch.EventReceipts.Add(_pendingEventReceipt);' + [Environment]::NewLine + '			EncounterSourcePreference source =')
+
+# Insert direct official-shiny resolver before the older ALM event path.
+$marker='		DateOnly date;' + [Environment]::NewLine + '		if (shiny && _options.PreferOfficialShinyEvents && _eventCatalog != null)'
+if ($g.Contains($marker) -and $g -notmatch 'TryGenerateDirectOfficialShiny') {
+  $replacement='		DateOnly date;' + [Environment]::NewLine +
+'		if (shiny && _options.PreferOfficialShinyEvents && _eventCatalog != null)' + [Environment]::NewLine +
+'		{' + [Environment]::NewLine +
+'			PKM? official = TryGenerateDirectOfficialShiny(species, out string officialReason);' + [Environment]::NewLine +
+'			if (official is not null)' + [Environment]::NewLine +
+'				return official;' + [Environment]::NewLine +
+'			text = officialReason;' + [Environment]::NewLine +
+'		}' + [Environment]::NewLine +
+'		if (shiny && _options.PreferOfficialShinyEvents && _eventCatalog != null)'
+  $g=$g.Replace($marker,$replacement)
+}
+
+# Direct Wonder Card -> PKM -> destination format -> legality. Fixed shiny events only.
+$helper=@'
+	private PKM? TryGenerateDirectOfficialShiny(ushort species, out string reason)
+	{
+		reason = "No hay un evento shiny oficial fijo utilizable para esta especie.";
+		if (_eventCatalog is null)
+			return null;
+
+		var candidates = _eventCatalog.ForSpecies(species)
+			.Where(z => z.IsFixedShiny && z.Gift is not null)
+			.OrderByDescending(z => z.Generation == _sav.Generation)
+			.ThenByDescending(z => z.Generation)
+			.ThenBy(z => z.CardID)
+			.ToArray();
+
+		foreach (var entry in candidates)
+		{
+			var gift = entry.Gift!;
+			if (!EventDateResolver.TryGetAnyVerifiedDate(gift, out DateOnly eventDate, out string dateReason))
+			{
+				reason = dateReason;
+				continue;
+			}
+
+			try
+			{
+				PKM source = gift.ConvertToPKM(_sav, EncounterCriteria.Unrestricted, eventDate);
+				if (source.Species != species || !source.IsShiny)
+				{
+					reason = "La Wonder Card no produjo la especie shiny esperada.";
+					continue;
+				}
+
+				Type destType = _sav.BlankPKM.GetType();
+				PKM? converted = source.GetType() == destType
+					? source
+					: EntityConverter.ConvertToType(source, destType, out _);
+				if (converted is null)
+				{
+					reason = "PKHeX no pudo transferir el evento al formato del save.";
+					continue;
+				}
+
+				_sav.AdaptToSaveFile(converted);
+				var la = new LegalityAnalysis(converted, (StorageSlotType)0);
+				if (!la.Valid)
+				{
+					reason = "El evento oficial convertido no pasa LegalityAnalysis en el save actual.";
+					continue;
+				}
+
+				if (_options.StrictValidation && !StrictPokemonValidator.Validate(_sav, converted, false, out string strictReason))
+				{
+					reason = "Validación estricta del evento: " + strictReason;
+					continue;
+				}
+
+				// Only the current save may receive a Wonder Record for a card it could actually redeem.
+				if (entry.Generation == _sav.Generation && gift.IsCardCompatible(_sav, out _))
+					_pendingEventReceipt = new EventReceiptPlan(gift, eventDate, entry.RelativePath);
+				else
+					_pendingEventReceipt = null;
+
+				reason = entry.Generation == _sav.Generation
+					? $"Evento shiny oficial actual: Card {entry.CardID:0000}."
+					: $"Evento shiny oficial histórico Gen {entry.Generation}; transferido sin Wonder Card.";
+				return converted;
+			}
+			catch (Exception ex)
+			{
+				reason = "Conversión del evento oficial: " + ex.GetBaseException().Message;
+			}
+		}
+
+		return null;
+	}
+
+'@
+$needle='	private PKM? TryGenerateForEncounter'
+if ($g -notmatch 'private PKM\? TryGenerateDirectOfficialShiny') {
+  $idx=$g.IndexOf($needle)
+  if ($idx -ge 0) { $g=$g.Insert($idx,$helper) }
+}
+Set-Content $gp $g -Encoding UTF8
+
+# Positional import: reserve exactly one physical slot per dex entry.
+$fp="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
+$c=Get-Content $fp -Raw
+$pattern='(?s)\tprivate static bool TryBuildInsertionPlan\(SaveFile sav, GenerationBatch batch, int startBox, out List<\(int Slot, PKM Pokemon\)> plan, out string reason\)\s*\{.*?\n\t\}\n\n\tprivate static bool AuditInsertedSlots'
+$replacement=@'
+	private static bool TryBuildInsertionPlan(SaveFile sav, GenerationBatch batch, int startBox, out List<(int Slot, PKM Pokemon)> plan, out string reason)
+	{
+		plan = new List<(int Slot, PKM Pokemon)>();
+		int firstSlot = (startBox - 1) * sav.BoxSlotCount;
+		int totalSlots = sav.BoxCount * sav.BoxSlotCount;
+		int requiredSpan = batch.Pokemon.Count;
+		if (requiredSpan <= 0)
+		{
+			reason = "El lote no contiene posiciones para importar.";
+			return false;
+		}
+		if (firstSlot + requiredSpan > totalSlots)
+		{
+			reason = $"La Living Dex necesita un tramo de {requiredSpan} slots desde la Caja {startBox}, pero no cabe en las cajas restantes.";
+			return false;
+		}
+
+		for (int i = 0; i < requiredSpan; i++)
+		{
+			int slot = firstSlot + i;
+			PKM? item = batch.Pokemon[i];
+			PKM existing = sav.GetBoxSlotAtIndex(slot);
+			if (existing.Species != 0)
+			{
+				int box = (slot / sav.BoxSlotCount) + 1;
+				int boxSlot = (slot % sav.BoxSlotCount) + 1;
+				reason = $"Para conservar el orden exacto, el tramo debe estar vacío. Caja {box}, slot {boxSlot} ya contiene #{existing.Species}.";
+				plan.Clear();
+				return false;
+			}
+			if (item is not null)
+				plan.Add((slot, item));
+			// null intentionally consumes this physical slot and leaves it empty.
+		}
+
+		reason = string.Empty;
+		return plan.Count > 0;
+	}
+
+	private static bool AuditInsertedSlots
+'@
+$c=[regex]::Replace($c,$pattern,$replacement)
+Set-Content $fp $c -Encoding UTF8

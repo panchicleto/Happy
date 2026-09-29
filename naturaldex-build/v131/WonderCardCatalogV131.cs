@@ -299,9 +299,9 @@ internal static class WonderCardCatalogLoader
         if (gift is WB8 && kind == WonderRewardKind.Clothing)
             return (false, "Ropa BDSP: el layout de desbloqueo no está expuesto de forma segura en esta build.");
         if (gift is WB8 && kind == WonderRewardKind.Underground)
-            return (false, "Objetos de Subsuelo BDSP: pendiente de adaptador específico seguro.");
+            return (true, "Compatible: los objetos de Grand Underground se aplicarán con límites nativos y se verificarán en el clon.");
         if (gift is WB8 && kind == WonderRewardKind.Points)
-            return (false, "BP de BDSP: no hay un setter público verificado en esta versión de PKHeX.Core.");
+            return (true, "Compatible: los BP se aplicarán mediante BattleTower.BP y se verificarán en el clon.");
         if (gift is WA8 && kind == WonderRewardKind.Clothing)
             return (false, "Ropa de PLA: los bloques de desbloqueo no están expuestos públicamente de forma estable.");
 

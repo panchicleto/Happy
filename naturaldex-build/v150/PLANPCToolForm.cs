@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using PKHeX.Core;
 
@@ -34,6 +35,9 @@ internal sealed class PLANPCToolForm : Form
         Height = 650;
 
         _grid.Columns.Add("Block", "Block Key");
+        _grid.Columns.Add("BlockSize", "Block bytes");
+        _grid.Columns.Add("Entities", "PA8 in block");
+        _grid.Columns.Add("Confidence", "Confidence");
         _grid.Columns.Add("Offset", "Offset");
         _grid.Columns.Add("Species", "Species");
         _grid.Columns.Add("Form", "Form");
@@ -101,7 +105,7 @@ internal sealed class PLANPCToolForm : Form
             0x511622B3, // spawners
         };
 
-        int found = 0;
+        var candidates = new List<Candidate>();
         Cursor old = Cursor;
         Cursor = Cursors.WaitCursor;
         try
@@ -111,7 +115,6 @@ internal sealed class PLANPCToolForm : Form
                 if (excluded.Contains(block.Key) || block.Data.Length < size)
                     continue;
 
-                // Most entity-containing save structures are naturally aligned.
                 for (int offset = 0; offset + size <= block.Data.Length; offset += 8)
                 {
                     PA8 pk;
@@ -123,25 +126,7 @@ internal sealed class PLANPCToolForm : Form
                     if (pk.Version != _sav.Version)
                         continue;
 
-                    bool legal = false;
-                    try { legal = new LegalityAnalysis(pk, _sav.Personal, StorageSlotType.None).Valid; } catch { }
-
-                    var candidate = new Candidate(block, offset, pk);
-                    int row = _grid.Rows.Add(
-                        block.Key.ToString("X8"),
-                        $"0x{offset:X}",
-                        $"#{pk.Species} {SpeciesName(pk.Species)}",
-                        pk.Form,
-                        pk.IsShiny ? "Sí" : "No",
-                        pk.IsAlpha ? "Sí" : "No",
-                        pk.Nickname,
-                        pk.PID.ToString("X8"),
-                        pk.EncryptionConstant.ToString("X8"),
-                        legal ? "Legal" : "Revisar");
-                    _grid.Rows[row].Tag = candidate;
-                    found++;
-
-                    // Avoid rediscovering overlapping windows of the same entity.
+                    candidates.Add(new Candidate(block, offset, pk));
                     offset += size - 8;
                 }
             }
@@ -151,8 +136,47 @@ internal sealed class PLANPCToolForm : Form
             Cursor = old;
         }
 
-        _status.Text = $"Candidatos PA8 fuera de almacenamiento normal: {found}";
-        if (found == 0)
+        var grouped = candidates
+            .GroupBy(z => z.Block.Key)
+            .ToDictionary(g => g.Key, g => g.OrderBy(z => z.Offset).ToArray());
+
+        int maxCount = grouped.Count == 0 ? 0 : grouped.Max(z => z.Value.Length);
+        foreach (var candidate in candidates.OrderByDescending(z => grouped[z.Block.Key].Length).ThenBy(z => z.Block.Key).ThenBy(z => z.Offset))
+        {
+            int count = grouped[candidate.Block.Key].Length;
+            string confidence = count >= 2 && count == maxCount
+                ? "Probable NPC/Farm block"
+                : count >= 2
+                    ? "Entity block"
+                    : "Single candidate";
+
+            bool legal = false;
+            try { legal = new LegalityAnalysis(candidate.Pokemon, _sav.Personal, StorageSlotType.None).Valid; } catch { }
+
+            int row = _grid.Rows.Add(
+                candidate.Block.Key.ToString("X8"),
+                candidate.Block.Data.Length,
+                count,
+                confidence,
+                $"0x{candidate.Offset:X}",
+                $"#{candidate.Pokemon.Species} {SpeciesName(candidate.Pokemon.Species)}",
+                candidate.Pokemon.Form,
+                candidate.Pokemon.IsShiny ? "Sí" : "No",
+                candidate.Pokemon.IsAlpha ? "Sí" : "No",
+                candidate.Pokemon.Nickname,
+                candidate.Pokemon.PID.ToString("X8"),
+                candidate.Pokemon.EncryptionConstant.ToString("X8"),
+                legal ? "Legal" : "Revisar");
+            _grid.Rows[row].Tag = candidate;
+        }
+
+        string probable = grouped
+            .Where(z => z.Value.Length >= 2 && z.Value.Length == maxCount)
+            .Select(z => $"{z.Key:X8} ({z.Value.Length} PA8)")
+            .FirstOrDefault() ?? "ninguno";
+
+        _status.Text = $"Candidatos: {candidates.Count} · bloques: {grouped.Count} · probable NPC/Farm: {probable}";
+        if (candidates.Count == 0)
             MessageBox.Show(this,
                 "No se localizaron entidades PA8 candidatas en este save. El bloque NPC/granja puede estar vacío o usar una disposición que necesite un perfil adicional.",
                 "NDX — PLA NPC", MessageBoxButtons.OK, MessageBoxIcon.Information);

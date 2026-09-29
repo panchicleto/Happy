@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using PKHeX.Core;
 
@@ -13,6 +14,7 @@ internal sealed class ZAStashToolForm : Form
     private const int EntityOffset = 8;
 
     private readonly SAV9ZA _sav;
+    private Dictionary<ulong, ZASpawnerLocation> _locations = new();
     private readonly DataGridView _grid = new()
     {
         Dock = DockStyle.Fill,
@@ -40,6 +42,9 @@ internal sealed class ZAStashToolForm : Form
         _grid.Columns.Add("PID", "PID");
         _grid.Columns.Add("EC", "EC");
         _grid.Columns.Add("Header", "Entry Hash");
+        _grid.Columns.Add("Map", "Map");
+        _grid.Columns.Add("Location", "Location");
+        _grid.Columns.Add("XYZ", "X / Y / Z");
         _grid.Columns.Add("Checksum", "PA9 checksum");
 
         var info = new Label
@@ -49,19 +54,25 @@ internal sealed class ZAStashToolForm : Form
             Padding = new Padding(10),
             MaximumSize = new System.Drawing.Size(940, 0),
             Text =
-                "Lee las 10 posiciones del Stored Shiny Entity block de Legends Z-A. " +
-                "Esta versión permite inspeccionar y extraer PA9. El mapa/teleport live permanece de solo lectura hasta validar una conexión sys-botbase.",
+                "Lee las 10 posiciones del Stored Shiny Entity block de Legends Z-A. El stash conserva un hash de spawner; " +
+                "NDX puede resolverlo a mapa/coordenadas cargando un CSV propio. No se incluye ni escribe teleport/live sin una conexión validada.",
         };
 
         var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(8) };
         var refresh = new Button { Text = "REFRESCAR", AutoSize = true };
         var export = new Button { Text = "EXTRAER PA9...", AutoSize = true };
+        var loadMap = new Button { Text = "CARGAR CSV DE SPAWNERS...", AutoSize = true };
+        var template = new Button { Text = "PLANTILLA CSV...", AutoSize = true };
         var close = new Button { Text = "Cerrar", AutoSize = true };
         refresh.Click += (_, _) => LoadRows();
         export.Click += (_, _) => ExportSelected();
+        loadMap.Click += (_, _) => LoadSpawnerMap();
+        template.Click += (_, _) => SaveSpawnerTemplate();
         close.Click += (_, _) => Close();
         bottom.Controls.Add(refresh);
         bottom.Controls.Add(export);
+        bottom.Controls.Add(loadMap);
+        bottom.Controls.Add(template);
         bottom.Controls.Add(close);
 
         Controls.Add(_grid);
@@ -93,11 +104,12 @@ internal sealed class ZAStashToolForm : Form
 
             if (pk.Species == 0)
             {
-                int erow = _grid.Rows.Add(i + 1, "(vacío)", "", "", "", "", "", header.ToString("X16"), "");
+                int erow = _grid.Rows.Add(i + 1, "(vacío)", "", "", "", "", "", header.ToString("X16"), "", "", "", "");
                 _grid.Rows[erow].Tag = pk;
                 continue;
             }
 
+            _locations.TryGetValue(header, out var loc);
             int row = _grid.Rows.Add(
                 i + 1,
                 $"#{pk.Species} {SpeciesName(pk.Species)}",
@@ -107,6 +119,9 @@ internal sealed class ZAStashToolForm : Form
                 pk.PID.ToString("X8"),
                 pk.EncryptionConstant.ToString("X8"),
                 header.ToString("X16"),
+                loc?.Map ?? "",
+                loc?.Location ?? "",
+                loc is null ? "" : $"{loc.X:0.###} / {loc.Y:0.###} / {loc.Z:0.###}",
                 pk.Valid ? "OK" : "Bad");
             _grid.Rows[row].Tag = pk;
         }
@@ -124,6 +139,43 @@ internal sealed class ZAStashToolForm : Form
         };
         if (sd.ShowDialog(this) == DialogResult.OK)
             File.WriteAllBytes(sd.FileName, pk.DecryptedBoxData);
+    }
+
+    private void LoadSpawnerMap()
+    {
+        using var od = new OpenFileDialog
+        {
+            Title = "Cargar mapa de spawners de Legends Z-A",
+            Filter = "CSV|*.csv|Texto|*.txt|Todos|*.*",
+        };
+        if (od.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        try
+        {
+            _locations = ZASpawnerMapLoader.LoadCsv(od.FileName, out int rejected);
+            LoadRows();
+            MessageBox.Show(this,
+                $"Hashes cargados: {_locations.Count}\r\nLíneas rechazadas: {rejected}",
+                "NDX — Z-A Spawner Map", MessageBoxButtons.OK,
+                rejected == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.GetBaseException().Message, "NDX — Z-A Spawner Map",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void SaveSpawnerTemplate()
+    {
+        using var sd = new SaveFileDialog
+        {
+            Filter = "CSV|*.csv",
+            FileName = "NDX-ZA-Spawners-template.csv",
+        };
+        if (sd.ShowDialog(this) == DialogResult.OK)
+            ZASpawnerMapLoader.WriteTemplate(sd.FileName);
     }
 
     private static string SpeciesName(ushort species)

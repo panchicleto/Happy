@@ -1,0 +1,127 @@
+name: Validate NDX Tools v1.7.0 PR
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'naturaldex-build/apply-v110.ps1'
+      - 'naturaldex-build/apply-v120.ps1'
+      - 'naturaldex-build/apply-v130.ps1'
+      - 'naturaldex-build/apply-v131.ps1'
+      - 'naturaldex-build/apply-v140.ps1'
+      - 'naturaldex-build/apply-v150.ps1'
+      - 'naturaldex-build/apply-v160.ps1'
+      - 'naturaldex-build/apply-v170.ps1'
+      - 'naturaldex-build/v120/**'
+      - 'naturaldex-build/v130/**'
+      - 'naturaldex-build/v131/**'
+      - 'naturaldex-build/v140/**'
+      - 'naturaldex-build/v150/**'
+      - 'naturaldex-build/v160/**'
+      - 'naturaldex-build/v170/**'
+      - '.github/workflows/naturaldex-v170-pr.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hexbyt3/PKHeXth
+          ref: afab45d8223f2c3356eae954c9179050c5d2f8ae
+          path: pkhexth
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Reassemble clean NaturalDex base
+        shell: pwsh
+        run: |
+          $b64=git show 6a8192535fcca3fd0e447f114070c8564e28adc9:naturaldex-build/v093part00.txt
+          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String(($b64 -join "")))
+          Expand-Archive src.zip NaturalDexSource -Force
+          cmd /c "git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch || exit /b 0"
+          $p="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
+          $c=Get-Content $p -Raw
+          $c=$c.Replace('_strictValidation.Checked, (int)_startBox.Value, (int)_retries.Value)', '_strictValidation.Checked, true, (int)_startBox.Value, (int)_retries.Value)')
+          Set-Content $p $c -Encoding UTF8
+
+      - name: Apply NDX chain
+        shell: pwsh
+        run: |
+          ./naturaldex-build/apply-v110.ps1
+          ./naturaldex-build/apply-v120.ps1
+          ./naturaldex-build/apply-v130.ps1
+          ./naturaldex-build/apply-v131.ps1
+          ./naturaldex-build/apply-v140.ps1
+          ./naturaldex-build/apply-v150.ps1
+          ./naturaldex-build/apply-v160.ps1
+          ./naturaldex-build/apply-v170.ps1
+
+      - name: Build PKHeX.Core 26.7.7.0
+        shell: pwsh
+        run: dotnet build pkhexth/PKHeX.Core/PKHeX.Core.csproj -c Release
+
+      - name: Verify exact PKHeX.Core version
+        shell: pwsh
+        run: |
+          $core=Get-ChildItem pkhexth/PKHeX.Core/bin/Release -Recurse -Filter PKHeX.Core.dll | Select-Object -First 1
+          $v=[Reflection.AssemblyName]::GetAssemblyName($core.FullName).Version.ToString()
+          Write-Host "PKHeX.Core build version: $v"
+          if ($v -ne "26.7.7.0") { throw "Expected PKHeX.Core 26.7.7.0, got $v" }
+          New-Item -ItemType Directory -Force NaturalDexSource/Deps | Out-Null
+          Copy-Item $core.FullName NaturalDexSource/Deps/PKHeX.Core.dll -Force
+
+      - name: Build NDX plugin
+        shell: pwsh
+        run: dotnet build NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj -c Release -o out
+
+      - name: Package NDX v1.7.0
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package/source | Out-Null
+          Copy-Item out/NaturalDex.Plugin.dll package/NDX.Tools.v1.7.0.dll
+          Get-FileHash package/NDX.Tools.v1.7.0.dll -Algorithm SHA256 | Format-List | Out-File package/NDX-Tools-v1.7.0.sha256.txt
+          @"
+          NDX Tools v1.7.0
+          Target PKHeX / PKHeX.Core: 26.7.7.0
+
+          New in v1.7:
+          - SV Overworld legal reconstruction using PKHeX Gen9 encounter generators.
+          - Preserves PID/EC/IVs/shiny/Tera/marks/size whenever a legal reconstruction exists.
+          - Explicit fallback when an encounter RNG correlation requires regenerated PID/EC.
+          - 20-entry SV Overworld audit.
+          - BDSP Wonder Card BP rewards through BattleTower.BP.
+          - BDSP Grand Underground Wonder Card rewards with native per-item limits.
+          - Post-commit audit of Pokemon, items, points, money, clothing and Underground rewards.
+          - BDSP receipt DeliveryID + date verification.
+          - PLA NPC/Farm scanner groups PA8 by block and identifies the highest-density probable block.
+          - ZA Shiny Stash optional hash -> map/X/Y/Z resolver using user supplied CSV.
+          - No unverified live memory write or teleport.
+
+          Includes all v1.6 features.
+          "@ | Set-Content package/README-NDX-Tools-v1.7.0.txt -Encoding UTF8
+
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/SVOverworldReconstructor.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/ZASpawnerMapLoader.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/SVOverworldToolForm.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/PLANPCToolForm.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/ZAStashToolForm.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/WonderCardInjectionService.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/WonderCardCatalog.cs package/source/
+
+          Compress-Archive -Path package/* -DestinationPath NDX-Tools-v1.7.0.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NDX-Tools-v1.7.0
+          path: |
+            NDX-Tools-v1.7.0.zip
+            package/NDX.Tools.v1.7.0.dll
+            package/NDX-Tools-v1.7.0.sha256.txt
+            package/README-NDX-Tools-v1.7.0.txt

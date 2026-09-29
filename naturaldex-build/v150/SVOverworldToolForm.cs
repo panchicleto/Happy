@@ -38,9 +38,14 @@ internal sealed class SVOverworldToolForm : Form
         _grid.Columns.Add("PID", "PID");
         _grid.Columns.Add("EC", "EC");
         _grid.Columns.Add("Level", "Met Lv.");
+        _grid.Columns.Add("Tera", "Tera");
+        _grid.Columns.Add("Marks", "Marks");
+        _grid.Columns.Add("Scale", "Scale");
+        _grid.Columns.Add("Size", "Mini/Jumbo");
         _grid.Columns.Add("Version", "Origin");
         _grid.Columns.Add("Checksum", "PK9 checksum");
         _grid.Columns.Add("Legality", "Legality");
+        _grid.Columns.Add("Reconstruction", "Reconstruction");
 
         var top = new Label
         {
@@ -49,19 +54,25 @@ internal sealed class SVOverworldToolForm : Form
             Padding = new Padding(10),
             MaximumSize = new System.Drawing.Size(940, 0),
             Text =
-                "Lee las 20 entidades almacenadas en el bloque Overworld de SV. " +
-                "La extracción guarda el PK9 tal como está en el bloque; algunos campos que el juego no conserva pueden requerir reconstrucción posterior.",
+                "Lee las 20 entidades almacenadas en el bloque Overworld de SV. NDX v1.7 puede reconstruir ubicación, nivel, OT, Ball y obedience " +
+                "probando encuentros Gen 9 de PKHeX y conservando PID/EC/IVs/shiny/Tera/marks siempre que LegalityAnalysis lo permita.",
         };
 
         var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(8) };
         var refresh = new Button { Text = "REFRESCAR", AutoSize = true };
-        var export = new Button { Text = "EXTRAER PK9...", AutoSize = true };
+        var export = new Button { Text = "EXTRAER RAW PK9...", AutoSize = true };
+        var reconstruct = new Button { Text = "RECONSTRUIR + EXTRAER LEGAL...", AutoSize = true };
+        var reconstructAll = new Button { Text = "AUDITAR 20 ENTRADAS", AutoSize = true };
         var close = new Button { Text = "Cerrar", AutoSize = true };
         refresh.Click += (_, _) => LoadRows();
         export.Click += (_, _) => ExportSelected();
+        reconstruct.Click += (_, _) => ReconstructSelected();
+        reconstructAll.Click += (_, _) => AuditAll();
         close.Click += (_, _) => Close();
         bottom.Controls.Add(refresh);
         bottom.Controls.Add(export);
+        bottom.Controls.Add(reconstruct);
+        bottom.Controls.Add(reconstructAll);
         bottom.Controls.Add(close);
 
         Controls.Add(_grid);
@@ -94,13 +105,17 @@ internal sealed class SVOverworldToolForm : Form
 
             if (pk.Species == 0)
             {
-                int erow = _grid.Rows.Add(i + 1, "(vacío)", "", "", "", "", "", "", "", "");
+                int erow = _grid.Rows.Add(i + 1, "(vacío)", "", "", "", "", "", "", "", "", "", "", "", "", "");
                 _grid.Rows[erow].Tag = pk;
                 continue;
             }
 
             bool legal = false;
             try { legal = new LegalityAnalysis(pk, _sav.Personal, StorageSlotType.None).Valid; } catch { }
+            var reconstructed = legal ? new SVReconstructionResult(true, pk.Clone(), "AlreadyLegal", "Ya legal.", true)
+                                      : SVOverworldReconstructor.Reconstruct(_sav, pk);
+            string size = pk.Scale switch { 0 => "Mini", 255 => "Jumbo", _ => "" };
+
             int row = _grid.Rows.Add(
                 i + 1,
                 $"#{pk.Species} {SpeciesName(pk.Species)}",
@@ -109,16 +124,29 @@ internal sealed class SVOverworldToolForm : Form
                 pk.PID.ToString("X8"),
                 pk.EncryptionConstant.ToString("X8"),
                 pk.MetLevel,
+                pk.TeraTypeOriginal,
+                pk.MarkCount,
+                pk.Scale,
+                size,
                 pk.Version,
                 pk.Valid ? "OK" : "Bad",
-                legal ? "Legal" : "Raw / revisar");
-            _grid.Rows[row].Tag = pk;
+                legal ? "Legal" : "Raw / revisar",
+                reconstructed.Success
+                    ? reconstructed.IdentityPreserved ? "Legal exacta" : "Legal regenerada"
+                    : "Sin coincidencia");
+            _grid.Rows[row].Tag = new SVRow(pk, reconstructed);
         }
     }
 
     private void ExportSelected()
     {
-        if (_grid.CurrentRow?.Tag is not PK9 pk || pk.Species == 0)
+        PK9? pk = _grid.CurrentRow?.Tag switch
+        {
+            SVRow row => row.Raw,
+            PK9 raw => raw,
+            _ => null,
+        };
+        if (pk is null || pk.Species == 0)
             return;
 
         using var sd = new SaveFileDialog
@@ -129,6 +157,82 @@ internal sealed class SVOverworldToolForm : Form
         if (sd.ShowDialog(this) == DialogResult.OK)
             File.WriteAllBytes(sd.FileName, pk.DecryptedBoxData);
     }
+
+    private void ReconstructSelected()
+    {
+        if (_grid.CurrentRow?.Tag is not SVRow row || row.Raw.Species == 0)
+            return;
+
+        SVReconstructionResult result = row.Reconstructed.Success
+            ? row.Reconstructed
+            : SVOverworldReconstructor.Reconstruct(_sav, row.Raw);
+
+        if (!result.Success || result.Pokemon is null)
+        {
+            MessageBox.Show(this, result.Message, "NDX — SV Reconstruction",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var sd = new SaveFileDialog
+        {
+            Filter = "PK9|*.pk9|Todos|*.*",
+            FileName = $"{result.Pokemon.Species:0000}_{SpeciesName(result.Pokemon.Species)}_legal.pk9",
+        };
+        if (sd.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        File.WriteAllBytes(sd.FileName, result.Pokemon.DecryptedBoxData);
+        MessageBox.Show(this,
+            result.Message + "\r\n\r\n" +
+            (result.IdentityPreserved
+                ? "PID/EC e identidad de la entrada fueron preservados."
+                : "PKHeX regeneró la correlación PID/EC necesaria para que el encuentro fuera legal."),
+            "NDX — SV Reconstruction", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private void AuditAll()
+    {
+        int used = 0;
+        int already = 0;
+        int exact = 0;
+        int regenerated = 0;
+        int failed = 0;
+
+        foreach (DataGridViewRow gridRow in _grid.Rows)
+        {
+            if (gridRow.Tag is not SVRow row || row.Raw.Species == 0)
+                continue;
+            used++;
+
+            bool legal = false;
+            try { legal = new LegalityAnalysis(row.Raw, _sav.Personal, StorageSlotType.None).Valid; } catch { }
+            if (legal)
+            {
+                already++;
+                continue;
+            }
+
+            var result = row.Reconstructed.Success ? row.Reconstructed : SVOverworldReconstructor.Reconstruct(_sav, row.Raw);
+            if (!result.Success)
+                failed++;
+            else if (result.IdentityPreserved)
+                exact++;
+            else
+                regenerated++;
+        }
+
+        MessageBox.Show(this,
+            $"Entradas usadas: {used}\r\n" +
+            $"Ya legales: {already}\r\n" +
+            $"Reconstruibles preservando PID/EC: {exact}\r\n" +
+            $"Reconstruibles regenerando correlación: {regenerated}\r\n" +
+            $"Sin coincidencia legal: {failed}",
+            "NDX — Auditoría SV Overworld",
+            MessageBoxButtons.OK, failed == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+    }
+
+    private sealed record SVRow(PK9 Raw, SVReconstructionResult Reconstructed);
 
     private static string SpeciesName(ushort species)
     {

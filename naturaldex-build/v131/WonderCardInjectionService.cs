@@ -60,30 +60,193 @@ internal static class WonderCardInjectionService
     {
         foreach (var entry in selected)
         {
-            if (entry.Kind != WonderRewardKind.Pokemon)
-                continue;
+            if (!AuditReward(sav, entry, out reason))
+                return false;
 
-            bool foundLegal = false;
-            for (int i = 0; i < sav.SlotCount; i++)
+            if (IsExactCardFormatForSave(entry.Gift, sav) &&
+                !AuditReceiptWhenExposed(sav, entry, out reason))
+                return false;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
+    private static bool AuditReward(SaveFile sav, WonderCardEntry entry, out string reason)
+    {
+        switch (entry.Kind)
+        {
+            case WonderRewardKind.Pokemon:
             {
-                var pk = sav.GetBoxSlotAtIndex(i);
-                if (pk.Species != entry.Gift.Species)
-                    continue;
-                var la = new LegalityAnalysis(pk, (StorageSlotType)0);
-                if (la.Valid)
+                for (int i = 0; i < sav.SlotCount; i++)
                 {
-                    foundLegal = true;
-                    break;
+                    var pk = sav.GetBoxSlotAtIndex(i);
+                    if (pk.Species != entry.Gift.Species)
+                        continue;
+                    var la = new LegalityAnalysis(pk, (StorageSlotType)0);
+                    if (la.Valid)
+                    {
+                        reason = string.Empty;
+                        return true;
+                    }
                 }
-            }
 
-            if (!foundLegal)
-            {
                 reason = $"No se encontró un #{entry.Gift.Species} legal después del commit.";
                 return false;
             }
+
+            case WonderRewardKind.Item:
+            {
+                foreach (var (id, qty) in GetItems(entry.Gift))
+                {
+                    int count = sav.Inventory
+                        .SelectMany(p => p.Items)
+                        .Where(z => z.Index == id)
+                        .Select(z => z.Count)
+                        .DefaultIfEmpty(0)
+                        .Max();
+                    if (count < qty)
+                    {
+                        reason = $"Item #{id}: la recompensa no está presente con la cantidad mínima esperada ({qty}).";
+                        return false;
+                    }
+                }
+
+                reason = string.Empty;
+                return true;
+            }
+
+            case WonderRewardKind.Points:
+                if (sav is SAV8SWSH swsh && swsh.Misc.BP == 0)
+                {
+                    reason = "El regalo de BP fue aplicado, pero el contador de BP quedó en cero.";
+                    return false;
+                }
+                if (sav is SAV8BS bdsp && bdsp.BattleTower.BP == 0)
+                {
+                    reason = "El regalo de BP de BDSP fue aplicado, pero BattleTower.BP quedó en cero.";
+                    return false;
+                }
+                if (sav is SAV9SV sv && sv.LeaguePoints == 0)
+                {
+                    reason = "El regalo de LP fue aplicado, pero LeaguePoints quedó en cero.";
+                    return false;
+                }
+                reason = string.Empty;
+                return true;
+
+            case WonderRewardKind.Money:
+                if (sav.Money == 0)
+                {
+                    reason = "El regalo de dinero fue aplicado, pero el dinero quedó en cero.";
+                    return false;
+                }
+                reason = string.Empty;
+                return true;
+
+            case WonderRewardKind.Underground:
+                if (sav is SAV8BS ug && entry.Gift is WB8 wb8)
+                {
+                    var items = ug.Underground.ReadItems();
+                    for (int i = 0; i < 7; i++)
+                    {
+                        int id;
+                        int qty;
+                        try { id = wb8.GetItem(i); qty = Math.Max(1, wb8.GetQuantity(i)); }
+                        catch { break; }
+                        if (id <= 0 || id >= items.Count || id == ushort.MaxValue)
+                            continue;
+                        if (items[id].Count < qty)
+                        {
+                            reason = $"Objeto de Grand Underground #{id}: cantidad final menor que la recompensa ({qty}).";
+                            return false;
+                        }
+                    }
+                }
+                reason = string.Empty;
+                return true;
+
+            case WonderRewardKind.Clothing:
+                return AuditClothing(sav, entry.Gift, out reason);
+
+            default:
+                reason = string.Empty;
+                return true;
+        }
+    }
+
+    private static bool AuditClothing(SaveFile sav, DataMysteryGift gift, out string reason)
+    {
+        if (sav is SAV8SWSH swsh && gift is WC8 wc8)
+        {
+            int genderBlock = swsh.MyStatus.GenderAppearance == 0 ? 0x20 : 0x50;
+            for (int i = 0; i < 6; i++)
+            {
+                int ofs = genderBlock + (8 * i);
+                ushort region = BinaryPrimitives.ReadUInt16LittleEndian(wc8.Data[ofs..]);
+                ushort index = BinaryPrimitives.ReadUInt16LittleEndian(wc8.Data[(ofs + 4)..]);
+                if (region == 0 || region == ushort.MaxValue || index == ushort.MaxValue)
+                    continue;
+                bool[] owned = swsh.Fashion.GetArrayOwnedFlag(region);
+                if (index >= owned.Length || !owned[index])
+                {
+                    reason = $"Ropa SWSH {region}:{index}: no quedó desbloqueada.";
+                    return false;
+                }
+            }
+            reason = string.Empty;
+            return true;
         }
 
+        if (sav is SAV9SV sv && gift is WC9 wc9)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                int ofs = 0x18 + (8 * i);
+                ushort category = BinaryPrimitives.ReadUInt16LittleEndian(wc9.Data[ofs..]);
+                ushort item = BinaryPrimitives.ReadUInt16LittleEndian(wc9.Data[(ofs + 4)..]);
+                if (item == ushort.MaxValue)
+                    continue;
+                if (!TryGetSVFashionKey(category, item, out uint key) ||
+                    !ContainsFashionItem(sv.Blocks.GetBlock(key).Data, item))
+                {
+                    reason = $"Ropa SV {category}:{item}: no quedó desbloqueada.";
+                    return false;
+                }
+            }
+            reason = string.Empty;
+            return true;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
+    private static bool AuditReceiptWhenExposed(SaveFile sav, WonderCardEntry entry, out string reason)
+    {
+        if (sav is SAV8BS bdsp)
+        {
+            var received = bdsp.MysteryRecords.Received;
+            var match = received.FirstOrDefault(z => z.DeliveryID == entry.CardID);
+            if (match is null)
+            {
+                reason = $"BDSP: no se encontró el registro de recepción para DeliveryID {entry.CardID}.";
+                return false;
+            }
+
+            if (entry.VerifiedDate is DateOnly expected)
+            {
+                DateOnly actual = DateOnly.FromDateTime(match.LocalTimestamp);
+                if (actual != expected)
+                {
+                    reason = $"BDSP: el historial del evento {entry.CardID} tiene fecha {actual:yyyy-MM-dd}, esperada {expected:yyyy-MM-dd}.";
+                    return false;
+                }
+            }
+        }
+
+        // SWSH/SV receipt layouts are written by EventReceiptWriter and are
+        // additionally protected by the byte-for-byte preview/commit audit in the UI.
         reason = string.Empty;
         return true;
     }
@@ -162,6 +325,7 @@ internal static class WonderCardInjectionService
             WonderRewardKind.Points => ApplyPoints(sav, gift, out message),
             WonderRewardKind.Clothing => ApplyClothing(sav, gift, out message),
             WonderRewardKind.Money => ApplyMoney(sav, gift, out message),
+            WonderRewardKind.Underground => ApplyUnderground(sav, gift, out message),
             _ => Unsupported(entry.Kind, out message),
         };
 
@@ -421,6 +585,28 @@ internal static class WonderCardInjectionService
             return true;
         }
 
+        if (sav is SAV8BS bdsp && gift is WB8 wb8)
+        {
+            int amount = wb8.GetItem(0);
+            if (amount <= 0 || (ulong)bdsp.BattleTower.BP + (uint)amount > uint.MaxValue)
+            {
+                message = "La cantidad de BP de BDSP no cabe legalmente.";
+                return false;
+            }
+
+            uint expected = bdsp.BattleTower.BP + (uint)amount;
+            bdsp.BattleTower.BP = expected;
+            if (bdsp.BattleTower.BP != expected)
+            {
+                message = "La auditoría de BP de BDSP falló.";
+                return false;
+            }
+
+            bdsp.State.Edited = true;
+            message = $"{amount:N0} BP añadidos en BDSP.";
+            return true;
+        }
+
         message = "Este tipo de puntos no tiene un setter seguro verificado para el save.";
         return false;
     }
@@ -455,6 +641,76 @@ internal static class WonderCardInjectionService
         }
 
         message = $"₽{amount:N0} añadidos.";
+        return true;
+    }
+
+    private static bool ApplyUnderground(SaveFile sav, DataMysteryGift gift, out string message)
+    {
+        if (sav is not SAV8BS bdsp || gift is not WB8 wb8)
+        {
+            message = "Los objetos de Subsuelo sólo están soportados para Wonder Cards WB8 en BDSP.";
+            return false;
+        }
+
+        var items = bdsp.Underground.ReadItems().ToArray();
+        int changed = 0;
+
+        for (int i = 0; i < 7; i++)
+        {
+            int id;
+            int qty;
+            try
+            {
+                id = wb8.GetItem(i);
+                qty = wb8.GetQuantity(i);
+            }
+            catch
+            {
+                break;
+            }
+
+            if (id <= 0 || id >= items.Length || id == ushort.MaxValue)
+                continue;
+
+            qty = Math.Max(1, qty);
+            var target = items[id];
+            if ((long)target.Count + qty > target.MaxValue)
+            {
+                message = $"Objeto de Subsuelo #{id}: {target.Count}+{qty} excede el máximo legal {target.MaxValue}.";
+                return false;
+            }
+
+            target.Count += qty;
+            target.HideNewFlag = false;
+            changed++;
+        }
+
+        if (changed == 0)
+        {
+            message = "La Wonder Card no contiene objetos de Subsuelo reconocibles.";
+            return false;
+        }
+
+        bdsp.Underground.WriteItems(items);
+
+        // Read back from the save block; do not trust only the in-memory objects.
+        var verify = bdsp.Underground.ReadItems();
+        for (int i = 0; i < 7; i++)
+        {
+            int id;
+            try { id = wb8.GetItem(i); }
+            catch { break; }
+            if (id <= 0 || id >= verify.Count || id == ushort.MaxValue)
+                continue;
+            if (verify[id].Count <= 0)
+            {
+                message = $"La auditoría del objeto de Subsuelo #{id} falló.";
+                return false;
+            }
+        }
+
+        bdsp.State.Edited = true;
+        message = $"{changed} tipo(s) de objeto de Grand Underground añadidos y verificados.";
         return true;
     }
 

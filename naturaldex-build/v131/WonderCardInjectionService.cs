@@ -148,7 +148,7 @@ internal static class WonderCardInjectionService
                 if (sav is SAV8BS ug && entry.Gift is WB8 wb8)
                 {
                     var items = ug.Underground.ReadItems();
-                    for (int i = 0; i < 6; i++)
+                    for (int i = 0; i < 7; i++)
                     {
                         int id;
                         int qty;
@@ -655,7 +655,7 @@ internal static class WonderCardInjectionService
         var items = bdsp.Underground.ReadItems().ToArray();
         int changed = 0;
 
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 7; i++)
         {
             int id;
             int qty;
@@ -695,7 +695,7 @@ internal static class WonderCardInjectionService
 
         // Read back from the save block; do not trust only the in-memory objects.
         var verify = bdsp.Underground.ReadItems();
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 7; i++)
         {
             int id;
             try { id = wb8.GetItem(i); }

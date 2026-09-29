@@ -162,6 +162,7 @@ internal static class WonderCardInjectionService
             WonderRewardKind.Points => ApplyPoints(sav, gift, out message),
             WonderRewardKind.Clothing => ApplyClothing(sav, gift, out message),
             WonderRewardKind.Money => ApplyMoney(sav, gift, out message),
+            WonderRewardKind.Underground => ApplyUnderground(sav, gift, out message),
             _ => Unsupported(entry.Kind, out message),
         };
 
@@ -421,6 +422,28 @@ internal static class WonderCardInjectionService
             return true;
         }
 
+        if (sav is SAV8BS bdsp && gift is WB8 wb8)
+        {
+            int amount = wb8.GetItem(0);
+            if (amount <= 0 || (ulong)bdsp.BattleTower.BP + (uint)amount > uint.MaxValue)
+            {
+                message = "La cantidad de BP de BDSP no cabe legalmente.";
+                return false;
+            }
+
+            uint expected = bdsp.BattleTower.BP + (uint)amount;
+            bdsp.BattleTower.BP = expected;
+            if (bdsp.BattleTower.BP != expected)
+            {
+                message = "La auditoría de BP de BDSP falló.";
+                return false;
+            }
+
+            bdsp.State.Edited = true;
+            message = $"{amount:N0} BP añadidos en BDSP.";
+            return true;
+        }
+
         message = "Este tipo de puntos no tiene un setter seguro verificado para el save.";
         return false;
     }
@@ -455,6 +478,76 @@ internal static class WonderCardInjectionService
         }
 
         message = $"₽{amount:N0} añadidos.";
+        return true;
+    }
+
+    private static bool ApplyUnderground(SaveFile sav, DataMysteryGift gift, out string message)
+    {
+        if (sav is not SAV8BS bdsp || gift is not WB8 wb8)
+        {
+            message = "Los objetos de Subsuelo sólo están soportados para Wonder Cards WB8 en BDSP.";
+            return false;
+        }
+
+        var items = bdsp.Underground.ReadItems().ToArray();
+        int changed = 0;
+
+        for (int i = 0; i < 6; i++)
+        {
+            int id;
+            int qty;
+            try
+            {
+                id = wb8.GetItem(i);
+                qty = wb8.GetQuantity(i);
+            }
+            catch
+            {
+                break;
+            }
+
+            if (id <= 0 || id >= items.Length || id == ushort.MaxValue)
+                continue;
+
+            qty = Math.Max(1, qty);
+            var target = items[id];
+            if ((long)target.Count + qty > target.MaxValue)
+            {
+                message = $"Objeto de Subsuelo #{id}: {target.Count}+{qty} excede el máximo legal {target.MaxValue}.";
+                return false;
+            }
+
+            target.Count += qty;
+            target.HideNewFlag = false;
+            changed++;
+        }
+
+        if (changed == 0)
+        {
+            message = "La Wonder Card no contiene objetos de Subsuelo reconocibles.";
+            return false;
+        }
+
+        bdsp.Underground.WriteItems(items);
+
+        // Read back from the save block; do not trust only the in-memory objects.
+        var verify = bdsp.Underground.ReadItems();
+        for (int i = 0; i < 6; i++)
+        {
+            int id;
+            try { id = wb8.GetItem(i); }
+            catch { break; }
+            if (id <= 0 || id >= verify.Count || id == ushort.MaxValue)
+                continue;
+            if (verify[id].Count <= 0)
+            {
+                message = $"La auditoría del objeto de Subsuelo #{id} falló.";
+                return false;
+            }
+        }
+
+        bdsp.State.Edited = true;
+        message = $"{changed} tipo(s) de objeto de Grand Underground añadidos y verificados.";
         return true;
     }
 

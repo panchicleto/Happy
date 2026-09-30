@@ -106,7 +106,7 @@ $events = Get-Content $eventsPath -Raw
 $form = Get-Content $formPath -Raw
 $planner = Get-Content $plannerPath -Raw
 $enum = Get-Content $enumPath -Raw
-$home = Get-Content "$src/HomeCollectionCatalog.cs" -Raw
+$homeCatalog = Get-Content "$src/HomeCollectionCatalog.cs" -Raw
 $homeTab = Get-Content "$src/HomeCollectionsTab.cs" -Raw
 $selector = Get-Content "$src/WonderCardSelectionForm.cs" -Raw
 $viewer = Get-Content "$src/SwShLeagueCardGameViewForm.cs" -Raw
@@ -124,17 +124,17 @@ if ($form -notmatch 'HOME — Starter Collection') { throw "v1.9.0: HOME layouts
 if ($form -notmatch 'SelectedIndex, 0, 9') { throw "v1.9.0: Living Dex does not allow HOME layout values." }
 if ($form -notmatch '_sisterVersionFallback\.Checked') { throw "v1.9.0: sister-version checkbox is not honored." }
 
-if ($home -notmatch 'Regional FormDex') { throw "v1.9.0: Regional FormDex missing." }
-if ($home -notmatch 'Complete FormDex') { throw "v1.9.0: Complete FormDex missing." }
-if ($home -notmatch 'Vivillon Pattern Dex') { throw "v1.9.0: Vivillon Dex missing." }
-if ($home -notmatch 'Alcremie Dex') { throw "v1.9.0: Alcremie Dex missing." }
-if ($home -notmatch 'Gender Pair Dex') { throw "v1.9.0: GenderDex missing." }
-if ($home -notmatch 'Apriball Matrix') { throw "v1.9.0: Apriball tracker missing." }
-if ($home -notmatch 'EventDex') { throw "v1.9.0: EventDex missing." }
-if ($home -notmatch 'AlphaDex') { throw "v1.9.0: AlphaDex missing." }
-if ($home -notmatch 'GO Origin Dex') { throw "v1.9.0: GO Origin Dex missing." }
-if ($home -notmatch 'Language Dex') { throw "v1.9.0: Language Dex missing." }
-if ($home -notmatch 'Ultimate HOME Collection') { throw "v1.9.0: Ultimate HOME collection missing." }
+if ($homeCatalog -notmatch 'Regional FormDex') { throw "v1.9.0: Regional FormDex missing." }
+if ($homeCatalog -notmatch 'Complete FormDex') { throw "v1.9.0: Complete FormDex missing." }
+if ($homeCatalog -notmatch 'Vivillon Pattern Dex') { throw "v1.9.0: Vivillon Dex missing." }
+if ($homeCatalog -notmatch 'Alcremie Dex') { throw "v1.9.0: Alcremie Dex missing." }
+if ($homeCatalog -notmatch 'Gender Pair Dex') { throw "v1.9.0: GenderDex missing." }
+if ($homeCatalog -notmatch 'Apriball Matrix') { throw "v1.9.0: Apriball tracker missing." }
+if ($homeCatalog -notmatch 'EventDex') { throw "v1.9.0: EventDex missing." }
+if ($homeCatalog -notmatch 'AlphaDex') { throw "v1.9.0: AlphaDex missing." }
+if ($homeCatalog -notmatch 'GO Origin Dex') { throw "v1.9.0: GO Origin Dex missing." }
+if ($homeCatalog -notmatch 'Language Dex') { throw "v1.9.0: Language Dex missing." }
+if ($homeCatalog -notmatch 'Ultimate HOME Collection') { throw "v1.9.0: Ultimate HOME collection missing." }
 
 if ($selector -notmatch 'REGISTRAR SOLO EN HISTORIAL') { throw "v1.9.0 regression: Wonder Card history-only mode lost." }
 if ($events -notmatch 'ADMINISTRAR / BORRAR HISTORIAL DEL SAVE') { throw "v1.9.0 regression: Wonder Card history cleaner lost." }

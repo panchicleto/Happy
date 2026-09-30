@@ -731,7 +731,7 @@ internal static class HomeCollectionCatalog
             bool isEvent = false;
             try
             {
-                if (new LegalityAnalysis(pk, StorageSlotType.Box).EncounterMatch is MysteryGift gift)
+                if (new LegalityAnalysis(pk, (StorageSlotType)0).EncounterMatch is MysteryGift gift)
                 {
                     isEvent = true;
                     eventCard = gift.CardID;
@@ -742,7 +742,7 @@ internal static class HomeCollectionCatalog
                 // Collection tracking must never block because one stored Pokémon is malformed.
             }
 
-            list.Add(new BoxInfo(slot, pk, marks, ribbons, alpha, isEvent, eventCard));
+            list.Add(new BoxInfo(slot, sav.BoxSlotCount, pk, marks, ribbons, alpha, isEvent, eventCard));
         }
         return list;
     }
@@ -821,6 +821,7 @@ internal static class HomeCollectionCatalog
 
     private sealed record BoxInfo(
         int Slot,
+        int BoxSlotCount,
         PKM Pokemon,
         int MarkCount,
         int RibbonCount,
@@ -830,8 +831,8 @@ internal static class HomeCollectionCatalog
     {
         public string Describe()
         {
-            int box = (Slot / 30) + 1;
-            int pos = (Slot % 30) + 1;
+            int box = (Slot / BoxSlotCount) + 1;
+            int pos = (Slot % BoxSlotCount) + 1;
             return $"Caja {box}, slot {pos}";
         }
     }

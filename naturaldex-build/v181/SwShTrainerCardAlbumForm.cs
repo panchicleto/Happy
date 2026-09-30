@@ -559,3 +559,20 @@ public sealed class SwShTrainerCardAlbumForm : Form
 
     private readonly record struct CardInfo(string OT, int TrainerID, string Game, string Number, string Printed);
 }
+
+
+public sealed partial class NaturalDexForm
+{
+    private void OpenSwShTrainerCardAlbumTool(object? sender, EventArgs e)
+    {
+        if (_provider.SAV is not SAV8SWSH live)
+            return;
+
+        var work = (SAV8SWSH)live.Clone();
+        using var form = new SwShTrainerCardAlbumForm(work);
+        if (form.ShowDialog(this) != DialogResult.OK || !form.Edited)
+            return;
+
+        CommitSwitchClone(live, work, "SWSH Trainer Card Album");
+    }
+}

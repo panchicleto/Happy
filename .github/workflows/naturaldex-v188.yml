@@ -88,6 +88,12 @@ jobs:
           Target PKHeX / PKHeX.Core: 26.7.7.0
 
           New in v1.8.8:
+          - New OrigiDex layout: generate only species that first debuted in the region of the opened game.
+          - Pokémon Black/White and Black 2/White 2: Teselia/Unova #494 Victini through #649 Genesect.
+          - Remakes map to their actual region (FRLG/LGPE Kanto, HGSS Johto, ORAS Hoenn, BDSP Sinnoh).
+          - Strict region rules: Alola #722-807, Galar #810-898, Hisui #899-905, Paldea #906-1010.
+          - Regional forms of older species are not counted as new species.
+          - Uses the same legal generation, shiny, event, gap-preservation and backup pipeline as the existing Living Dex.
           - Wonder Card catalog now shows only cards belonging to the currently opened game.
           - Separate actions: RECOMPENSA + HISTORIAL or REGISTRAR SOLO EN HISTORIAL.
           - History-only mode writes the Mystery Gift receipt but does not add Pokemon, items, clothing, money, BP/LP or other rewards.
@@ -159,6 +165,7 @@ jobs:
           Copy-Item NaturalDexSource/NaturalDex.Plugin/WonderCardHistoryManagerForm.cs package/source/
           Copy-Item NaturalDexSource/NaturalDex.Plugin/WonderCardSelectionForm.cs package/source/
           Copy-Item NaturalDexSource/NaturalDex.Plugin/WonderCardInjectionService.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/OrigiDexCatalog.cs package/source/
           Copy-Item NaturalDexSource/NaturalDex.Plugin/SwShTrainerCardGalleryForm.cs package/source/
           Copy-Item NaturalDexSource/NaturalDex.Plugin/SwShLeagueCardGameViewForm.cs package/source/
           Copy-Item NaturalDexSource/NaturalDex.Plugin/SwShTrainerCardGalleryForm.cs package/source/

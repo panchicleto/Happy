@@ -97,6 +97,7 @@ $planner = Get-Content $plannerPath -Raw
 $enum = Get-Content $enumPath -Raw
 $origin = Get-Content "$src/OrigiDexCatalog.cs" -Raw
 $events = Get-Content "$src/NaturalDexForm.Events.cs" -Raw
+$selector = Get-Content "$src/WonderCardSelectionForm.cs" -Raw
 $viewer = Get-Content "$src/SwShLeagueCardGameViewForm.cs" -Raw
 $history = Get-Content "$src/WonderCardHistoryManagerForm.cs" -Raw
 
@@ -114,7 +115,7 @@ if ($origin -notmatch 'new\("Hisui", 899, 905') { throw "v1.8.8 verification: Hi
 if ($origin -notmatch 'new\("Paldea", 906, 1010') { throw "v1.8.8 verification: strict Paldea range missing." }
 
 # Previous functionality must remain.
-if ($events -notmatch 'REGISTRAR SOLO EN HISTORIAL') { throw "v1.8.8 regression: Wonder Card history-only mode lost." }
+if ($selector -notmatch 'REGISTRAR SOLO EN HISTORIAL') { throw "v1.8.8 regression: Wonder Card history-only mode lost." }
 if ($events -notmatch 'ADMINISTRAR / BORRAR HISTORIAL DEL SAVE') { throw "v1.8.8 regression: history cleaner lost." }
 if ($history -notmatch 'BORRAR TODO EL HISTORIAL') { throw "v1.8.8 regression: history manager lost." }
 if ($viewer -notmatch 'VOLTEAR TARJETA') { throw "v1.8.8 regression: Game Style League Card viewer lost." }

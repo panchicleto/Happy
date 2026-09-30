@@ -238,7 +238,7 @@ internal sealed class WonderCardSelectionForm : Form
         history.AutoSize = true;
         history.Enabled = _sav is not SAV9ZA;
         if (!history.Enabled)
-            history.ToolTipText = "Z-A: el historial WA9 todavía no tiene un layout público verificado en esta build.";
+            history.Text = "SOLO HISTORIAL (NO DISPONIBLE EN Z-A)";
 
         inject.AutoSize = true;
         buttons.Controls.Add(cancel);

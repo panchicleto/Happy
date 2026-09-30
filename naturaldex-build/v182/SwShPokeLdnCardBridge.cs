@@ -311,7 +311,7 @@ public sealed class SwShTrainerCardEditorForm : Form
         int year = BinaryPrimitives.ReadUInt16LittleEndian(_card.AsSpan(0x170, 2));
         int month = _card[0x172];
         int day = _card[0x173];
-        if (year is >= 2000 and <= 2100 && month is >= 1 and <= 12 && day is >= 1 and <= DateTime.DaysInMonth(year, month))
+        if (year is >= 2000 and <= 2100 && month is >= 1 and <= 12 && day >= 1 && day <= DateTime.DaysInMonth(year, month))
             _started.Value = new DateTime(year, month, day);
 
         uint ts = BinaryPrimitives.ReadUInt32LittleEndian(_card.AsSpan(0x1A8, 4));

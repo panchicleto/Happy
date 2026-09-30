@@ -371,7 +371,8 @@ internal sealed class SwShLeagueCardCanvas : Control
 
     private static void DrawBack(Graphics g, SwShLeagueCardData d)
     {
-        g.Clear(Color.FromArgb(240, 242, 245));
+        using (var back = new SolidBrush(Color.FromArgb(240, 242, 245)))
+            g.FillRectangle(back, 0, 0, BaseWidth, BaseHeight);
 
         using var top = new SolidBrush(Color.FromArgb(41, 49, 63));
         g.FillRectangle(top, 0, 0, BaseWidth, 112);
@@ -534,7 +535,9 @@ internal static class PkhexSpriteBridge
 
         foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
         {
-            Type? type = asm.GetType("PKHeX.WinForms.SpriteUtil", false);
+            Type? type =
+                asm.GetType("PKHeX.Drawing.PokeSprite.SpriteUtil", false) ??
+                asm.GetType("PKHeX.WinForms.SpriteUtil", false);
             if (type is null)
                 continue;
 

@@ -512,7 +512,7 @@ public sealed class SwShTrainerCardAlbumForm : Form
         if (data.Length != CardSize)
             throw new InvalidDataException("Tamaño de Trainer Card inválido.");
 
-        data.CopyTo(GetSlotSpan(slot));
+        data.AsSpan().CopyTo(GetSlotSpan(slot));
 
         if (!GetSlotSpan(slot).SequenceEqual(data))
             throw new InvalidDataException($"La auditoría del slot {slot + 1} falló después de escribir.");

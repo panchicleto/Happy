@@ -11,11 +11,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: hexbyt3/PKHeXth
-          ref: afab45d8223f2c3356eae954c9179050c5d2f8ae
-          path: pkhexth
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'

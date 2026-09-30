@@ -1,0 +1,119 @@
+name: Build NDX Tools v1.8.1
+
+on:
+  push:
+    branches: [ ndx-tools-v181 ]
+    paths:
+      - 'naturaldex-build/apply-v181.ps1'
+      - 'naturaldex-build/v181/**'
+      - '.github/workflows/naturaldex-v181.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hexbyt3/PKHeXth
+          ref: afab45d8223f2c3356eae954c9179050c5d2f8ae
+          path: pkhexth
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Reassemble clean NaturalDex base
+        shell: pwsh
+        run: |
+          $b64=git show 6a8192535fcca3fd0e447f114070c8564e28adc9:naturaldex-build/v093part00.txt
+          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String(($b64 -join "")))
+          Expand-Archive src.zip NaturalDexSource -Force
+          cmd /c "git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch || exit /b 0"
+          $p="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
+          $c=Get-Content $p -Raw
+          $c=$c.Replace('_strictValidation.Checked, (int)_startBox.Value, (int)_retries.Value)', '_strictValidation.Checked, true, (int)_startBox.Value, (int)_retries.Value)')
+          Set-Content $p $c -Encoding UTF8
+
+      - name: Apply NDX chain
+        shell: pwsh
+        run: |
+          ./naturaldex-build/apply-v110.ps1
+          ./naturaldex-build/apply-v120.ps1
+          ./naturaldex-build/apply-v130.ps1
+          ./naturaldex-build/apply-v131.ps1
+          ./naturaldex-build/apply-v140.ps1
+          ./naturaldex-build/apply-v150.ps1
+          ./naturaldex-build/apply-v160.ps1
+          ./naturaldex-build/apply-v170.ps1
+          ./naturaldex-build/apply-v180.ps1
+          ./naturaldex-build/apply-v181.ps1
+
+      - name: Build PKHeX.Core 26.7.7.0
+        shell: pwsh
+        run: dotnet build pkhexth/PKHeX.Core/PKHeX.Core.csproj -c Release
+
+      - name: Verify exact PKHeX.Core version
+        shell: pwsh
+        run: |
+          $core=Get-ChildItem pkhexth/PKHeX.Core/bin/Release -Recurse -Filter PKHeX.Core.dll | Select-Object -First 1
+          $v=[Reflection.AssemblyName]::GetAssemblyName($core.FullName).Version.ToString()
+          Write-Host "PKHeX.Core build version: $v"
+          if ($v -ne "26.7.7.0") { throw "Expected PKHeX.Core 26.7.7.0, got $v" }
+          New-Item -ItemType Directory -Force NaturalDexSource/Deps | Out-Null
+          Copy-Item $core.FullName NaturalDexSource/Deps/PKHeX.Core.dll -Force
+
+      - name: Build NDX plugin
+        shell: pwsh
+        run: dotnet build NaturalDexSource/NaturalDex.Plugin.v0.5.0.csproj -c Release -o out
+
+      - name: Package NDX v1.8.1
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package/source | Out-Null
+          Copy-Item out/NaturalDex.Plugin.dll package/NDX.Tools.v1.8.1.dll
+          Get-FileHash package/NDX.Tools.v1.8.1.dll -Algorithm SHA256 | Format-List | Out-File package/NDX-Tools-v1.8.1.sha256.txt
+          @"
+          NDX Tools v1.8.1
+          Target PKHeX / PKHeX.Core: 26.7.7.0
+
+          New in v1.8.1:
+          - Sword/Shield Trainer Card Album tool.
+          - Uses the native KFriendLeagueCards block (0x28E707F5).
+          - 300 album slots, each matching TrainerCard8 raw size 0x1D0.
+          - Export current player Trainer Card as .lc8.
+          - Copy current player card into the album.
+          - Export/import individual album cards as .lc8.
+          - Bulk export all occupied cards.
+          - Bulk import a folder of .lc8 cards into free slots.
+          - Full album backup/restore as .lc8album (0x21FC0 bytes).
+          - Slot overwrite confirmation and post-write byte audit.
+          - Displays OT, six-digit Trainer Card ID, Sword/Shield, card number and printed timestamp.
+
+          Includes all v1.8.0 features: NaturalDex, Events/Wonder Cards, Save Auditor,
+          SWSH Raids/Seed Finder/Dynamax Adventure/Crown Tundra/Curry/Poke Camp,
+          BDSP event rewards/clothing, PLA NPC/Farm + WA8 clothing,
+          SV Overworld reconstruction and Legends Z-A tools/WA9 support.
+          "@ | Set-Content package/README-NDX-Tools-v1.8.1.txt -Encoding UTF8
+
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/SwShTrainerCardAlbumForm.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/NDXSwitchTools.Tab.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/WonderCardInjectionService.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/WonderCardCatalog.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/SVOverworldReconstructor.cs package/source/
+          Copy-Item NaturalDexSource/NaturalDex.Plugin/ZASpawnerMapLoader.cs package/source/
+
+          Compress-Archive -Path package/* -DestinationPath NDX-Tools-v1.8.1.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NDX-Tools-v1.8.1
+          path: |
+            NDX-Tools-v1.8.1.zip
+            package/NDX.Tools.v1.8.1.dll
+            package/NDX-Tools-v1.8.1.sha256.txt
+            package/README-NDX-Tools-v1.8.1.txt

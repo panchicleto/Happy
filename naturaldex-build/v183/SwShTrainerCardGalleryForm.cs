@@ -373,7 +373,9 @@ public sealed class SwShTrainerCardGalleryForm : Form
         int year = BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(0x170, 2));
         int month = raw[0x172];
         int day = raw[0x173];
-        if (year != 0 && (year < 2019 || year > 2100 || month < 1 || month > 12 || day < 1 || (month <= 12 && day > DateTime.DaysInMonth(year, month))))
+        bool validMonth = month is >= 1 and <= 12;
+        bool validDay = validMonth && day >= 1 && day <= DateTime.DaysInMonth(Math.Clamp(year, 1, 9999), month);
+        if (year != 0 && (year < 2019 || year > 2100 || !validMonth || !validDay))
             warnings.Add($"Fecha de inicio dudosa: {year:D4}-{month:D2}-{day:D2}.");
 
         uint ts = BinaryPrimitives.ReadUInt32LittleEndian(raw.AsSpan(0x1A8, 4));
@@ -404,7 +406,7 @@ public sealed class SwShTrainerCardGalleryForm : Form
             if (species is < 0 or > 898)
                 warnings.Add($"Pokémon {i + 1}: species {species} fuera del rango SWSH esperado.");
             int gender = BinaryPrimitives.ReadInt32LittleEndian(raw.AsSpan(at + 8, 4));
-            if (species != 0 && gender is < 0 or > 2)
+            if (species != 0 && (gender < 0 || gender > 2))
                 warnings.Add($"Pokémon {i + 1}: gender {gender} fuera del rango esperado.");
         }
 

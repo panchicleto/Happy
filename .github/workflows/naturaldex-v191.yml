@@ -59,6 +59,7 @@ jobs:
           ./naturaldex-build/apply-v187.ps1
           ./naturaldex-build/apply-v188.ps1
           ./naturaldex-build/apply-v190.ps1
+          ./naturaldex-build/apply-v191.ps1
 
       - name: Build PKHeX.Core 26.7.7.0
         shell: pwsh

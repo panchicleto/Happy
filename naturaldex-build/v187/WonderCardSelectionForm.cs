@@ -189,7 +189,7 @@ internal sealed class WonderCardSelectionForm : Form
             if (e.RowIndex < 0 || e.ColumnIndex != 0)
                 return;
             var entry = _grid.Rows[e.RowIndex].Tag as WonderCardEntry;
-            if (entry is { CanInject: false })
+            if (entry is not null && !entry.CanInject && !CanRegisterHistory(entry))
                 System.Media.SystemSounds.Beep.Play();
         };
 
@@ -267,7 +267,7 @@ internal sealed class WonderCardSelectionForm : Form
 
         query = _filter.SelectedIndex switch
         {
-            0 => query.Where(z => z.CanInject),
+            0 => query.Where(z => z.CanInject || CanRegisterHistory(z)),
             2 => query.Where(z => z.Kind == WonderRewardKind.Pokemon),
             3 => query.Where(z => z.Kind == WonderRewardKind.Pokemon && z.IsShiny),
             4 => query.Where(z => z.Kind == WonderRewardKind.Item || z.Kind == WonderRewardKind.Underground),

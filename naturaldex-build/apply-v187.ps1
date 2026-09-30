@@ -93,8 +93,9 @@ $old = @'
                 throw new InvalidOperationException("Auditoría de legalidad posterior al commit: " + auditReason);
 '@
 $new = @'
+            string auditReason;
             bool auditOk = historyOnly
-                ? WonderCardInjectionService.AuditHistoryOnly(live, selected, out string auditReason)
+                ? WonderCardInjectionService.AuditHistoryOnly(live, selected, out auditReason)
                 : WonderCardInjectionService.AuditCommitted(live, selected, out auditReason);
 
             if (!auditOk)

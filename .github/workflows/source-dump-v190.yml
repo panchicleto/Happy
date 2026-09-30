@@ -17,14 +17,17 @@ jobs:
       - name: Reassemble clean NaturalDex base
         shell: pwsh
         run: |
-          $b64 = Get-Content naturaldex-build/v093part00.txt -Raw
-          [IO.File]::WriteAllBytes("NaturalDex-v093.zip", [Convert]::FromBase64String($b64))
-          Expand-Archive NaturalDex-v093.zip -DestinationPath NaturalDexSource -Force
+          $b64=git show 6a8192535fcca3fd0e447f114070c8564e28adc9:naturaldex-build/v093part00.txt
+          [IO.File]::WriteAllBytes("src.zip",[Convert]::FromBase64String(($b64 -join "")))
+          Expand-Archive src.zip NaturalDexSource -Force
+          cmd /c "git -C NaturalDexSource apply --reject --recount --ignore-space-change ../naturaldex-build/v094.patch || exit /b 0"
+          $p="NaturalDexSource/NaturalDex.Plugin/NaturalDexForm.cs"
+          $c=Get-Content $p -Raw
+          $c=$c.Replace('_strictValidation.Checked, (int)_startBox.Value, (int)_retries.Value)', '_strictValidation.Checked, true, (int)_startBox.Value, (int)_retries.Value)')
+          Set-Content $p $c -Encoding UTF8
       - name: Apply current NDX chain
         shell: pwsh
         run: |
-          ./naturaldex-build/apply-v094.ps1
-          ./naturaldex-build/apply-v095.ps1
           ./naturaldex-build/apply-v110.ps1
           ./naturaldex-build/apply-v120.ps1
           ./naturaldex-build/apply-v130.ps1

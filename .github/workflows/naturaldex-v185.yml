@@ -54,6 +54,7 @@ jobs:
           ./naturaldex-build/apply-v181.ps1
           ./naturaldex-build/apply-v182.ps1
           ./naturaldex-build/apply-v183.ps1
+          ./naturaldex-build/apply-v184.ps1
           ./naturaldex-build/apply-v185.ps1
 
       - name: Build PKHeX.Core 26.7.7.0

@@ -31,7 +31,7 @@ if ($bridge -notmatch 'SnapshotLength = 3456') { throw "v1.8.2 verification: ful
 if ($bridge -notmatch 'ShortSnapshotLength = 2965') { throw "v1.8.2 verification: short pokeldn snapshot support missing." }
 if ($bridge -notmatch 'ZLibStream') { throw "v1.8.2 verification: pokeldn short snapshot inflation missing." }
 if ($bridge -notmatch 'BuildCardSetArguments') { throw "v1.8.2 verification: --card-set bridge missing." }
-if ($bridge -notmatch 'poke6_form_argument') { throw "v1.8.2 verification: six showcase Pokemon mapping missing." }
+if ($bridge -notmatch 'pokeBase' -or $bridge -notmatch 'form_argument') { throw "v1.8.2 verification: six showcase Pokemon mapping missing." }
 if ($album -notmatch 'POKELDN SNAPSHOT') { throw "v1.8.2 verification: snapshot UI missing." }
 if ($album -notmatch 'EDITAR MI TARJETA') { throw "v1.8.2 verification: card editor UI missing." }
 if ($album -notmatch 'MI TARJETA → SNAPSHOT POKELDN') { throw "v1.8.2 verification: snapshot injection UI missing." }

@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -164,6 +165,8 @@ internal sealed class SwShLeagueCardCanvas : Control
     private readonly SAV8SWSH _sav;
     private byte[] _card;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool ShowBack { get; set; }
 
     public SwShLeagueCardCanvas(SAV8SWSH sav, byte[] card)
